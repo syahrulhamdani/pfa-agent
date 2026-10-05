@@ -10,6 +10,7 @@ dependencies = [
     "fastapi>=0.142.2",
     "langchain-google-genai>=4.4.0",
     "langgraph>=1.2.12",
+    "langsmith>=0.14.4",
     "loguru>=0.7.3",
     "pydantic-settings>=2.15.0",
     "python-telegram-bot>=22.8",

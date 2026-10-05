@@ -55,7 +55,7 @@ Unverified, to check first in the build: the exact Gemini model IDs for Flash Li
 Everything runs locally; this is enough for the required demo video and the public GitHub repo. No deployment.
 
 - Requirements: Python via pyenv, `uv`, Node, Docker, a Telegram bot token (from BotFather) and a Gemini API key.
-- Config: `.env.example` is the env file (per your convention) with `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`, `GEMINI_CHAT_MODEL`, `GEMINI_EXTRACT_MODEL`, `WEB_BASE_URL`, `TIMEZONE`, `LOG_LEVEL`, `LOG_USE_BASIC_FORMAT`. Real secrets must not be committed to the public repo.
+- Config: `.env.example` is the env file (per your convention) with `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`, `GEMINI_CHAT_MODEL`, `GEMINI_EXTRACT_MODEL`, `WEB_BASE_URL`, `TIMEZONE`, `LOG_LEVEL`, `LOG_USE_BASIC_FORMAT`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`. Real secrets must not be committed to the public repo.
 - Start:
   1. `docker compose up -d db`
   2. `uv run --env-file .env.example alembic upgrade head`
@@ -170,7 +170,8 @@ pfa/
 - **Gemini API** — docs: https://ai.google.dev/gemini-api/docs. Needs `GEMINI_API_KEY`. Flash Lite for chat and recommendations; Pro for extraction with structured (JSON schema) output, called through LangGraph nodes. Rate limits and pricing: check current docs at the start of the build.
 - **Telegram Bot API** — docs: https://core.telegram.org/bots/api. Needs a token from BotFather. Free. File downloads go through `getFile`.
 - **PostgreSQL** — local Docker container; no cost.
-- **LangGraph** — open-source library, no account needed (LangSmith tracing is optional and not used).
+- **LangGraph** — open-source library, no account needed.
+- **LangSmith** — observability for every LangGraph and Gemini call. Needs `LANGSMITH_API_KEY`; free tier is enough. Off by default (`LANGSMITH_TRACING=false`) because traces contain message and, later, receipt contents. Added by the learner during slice 1; docs: https://docs.smith.langchain.com/.
 - No hosting, email or payment services.
 
 ## Important Failure Modes

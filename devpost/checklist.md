@@ -111,3 +111,5 @@ Reflection:
 Activity mode: 
 
 ## Revisions
+
+- Added LangSmith observability (env-driven tracing, off by default, named `chat` runs) — the learner asked for it after slice 1; the spec had listed LangSmith as not used. Later graphs should set a `run_name` and tags the same way.

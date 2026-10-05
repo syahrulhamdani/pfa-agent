@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     timezone: str = "Asia/Jakarta"
     log_level: str = "INFO"
     log_use_basic_format: bool = True
+    # LangSmith observability. LangChain and LangGraph read the LANGSMITH_* env
+    # vars directly; these fields exist so the app can report its tracing state.
+    langsmith_tracing: bool = False
+    langsmith_api_key: str = ""
+    langsmith_project: str = "pfa"
+
+    @property
+    def tracing_enabled(self) -> bool:
+        """True when LangSmith tracing is on and an API key is present."""
+        return self.langsmith_tracing and bool(self.langsmith_api_key)
 
 
 @lru_cache

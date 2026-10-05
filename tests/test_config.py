@@ -27,3 +27,12 @@ def test_settings_requires_secrets(monkeypatch):
 def test_settings_rejects_empty_token():
     with pytest.raises(ValidationError):
         Settings(telegram_bot_token="", telegram_chat_id=1, gemini_api_key="k")
+
+
+def test_tracing_requires_flag_and_key():
+    base = {"telegram_bot_token": "t", "telegram_chat_id": 1, "gemini_api_key": "k"}
+    assert not Settings(**base).tracing_enabled
+    assert not Settings(**base, langsmith_tracing=True).tracing_enabled
+    assert not Settings(**base, langsmith_api_key="ls").tracing_enabled
+    on = Settings(**base, langsmith_tracing=True, langsmith_api_key="ls")
+    assert on.tracing_enabled

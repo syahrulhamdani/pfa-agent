@@ -60,7 +60,11 @@ async def chat_reply(graph: CompiledStateGraph, chat_id: int, text: str) -> str:
     try:
         result = await graph.ainvoke(
             {"messages": [("user", text)]},
-            config={"configurable": {"thread_id": str(chat_id)}},
+            config={
+                "configurable": {"thread_id": str(chat_id)},
+                "run_name": "chat",
+                "tags": ["pfa", "chat"],
+            },
         )
     except Exception as exc:  # Gemini rate limits, timeouts, network errors.
         raise LLMError(f"chat model call failed: {exc}") from exc

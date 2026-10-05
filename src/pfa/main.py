@@ -18,6 +18,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Starts Telegram polling on startup and stops it on shutdown."""
     settings = get_settings()
     configure_logging(settings.log_level, settings.log_use_basic_format)
+    if settings.langsmith_tracing and not settings.langsmith_api_key:
+        logger.warning("LANGSMITH_TRACING is on but LANGSMITH_API_KEY is empty")
+    logger.info(
+        "LangSmith tracing {} (project: {})",
+        "enabled" if settings.tracing_enabled else "disabled",
+        settings.langsmith_project,
+    )
     chat_graph = build_chat_graph(build_chat_model(settings))
     application = build_application(settings, chat_graph)
     app.state.telegram = application
