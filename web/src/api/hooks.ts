@@ -1,15 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
+import { isPreset, toApiQuery } from '../filters'
+import type { Filters } from '../filters'
 import type { Bank, Card, Transaction } from './types'
 
 // New confirmations should appear without a reload.
 const LIVE_REFETCH_MS = 5000
 
-export function useTodayTransactions() {
+// No filters means the "confirmed today" preset; otherwise the filtered search.
+export function useTransactions(filters: Filters) {
+  const preset = isPreset(filters)
+  const query = toApiQuery(filters)
   return useQuery({
-    queryKey: ['transactions', 'today'],
-    queryFn: () => api<Transaction[]>('/transactions/today'),
+    queryKey: ['transactions', preset ? 'today' : query],
+    queryFn: () =>
+      api<Transaction[]>(preset ? '/transactions/today' : `/transactions?${query}`),
     refetchInterval: LIVE_REFETCH_MS,
+  })
+}
+
+export function useCategories() {
+  return useQuery({
+    queryKey: ['categories'],
+    queryFn: () => api<string[]>('/categories'),
+    staleTime: Infinity,
   })
 }
 

@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 
 const LINKS = [
-  { to: '/transactions/today', label: "Today's transactions" },
+  { to: '/transactions', label: 'Transactions' },
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/budgets', label: 'Budgets' },
   { to: '/goals', label: 'Goals' },

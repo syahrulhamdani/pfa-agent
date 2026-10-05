@@ -1,6 +1,7 @@
 """Async repositories for banks, cards, categories, uploads and transactions."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import func, select
@@ -202,24 +203,49 @@ class TransactionRepository:
         )
         return list(result)
 
-    async def list_confirmed_between(
-        self, start: datetime, end: datetime
+    async def search_confirmed(
+        self,
+        *,
+        confirmed_from: datetime | None = None,
+        confirmed_to: datetime | None = None,
+        occurred_from: date | None = None,
+        occurred_to: date | None = None,
+        min_amount: Decimal | None = None,
+        max_amount: Decimal | None = None,
+        category_names: list[str] | None = None,
+        limit: int = 500,
     ) -> list[tuple[Transaction, str | None, str | None]]:
-        """Returns confirmed transactions confirmed in [start, end), newest first.
+        """Searches confirmed transactions, newest confirmation first.
 
-        Each row is the transaction, its category name and its card label.
+        Ranges are inclusive at the start and exclusive at the end for
+        `confirmed_*`, and inclusive on both ends for `occurred_*`.
+
+        Returns:
+            Rows of the transaction, its category name and its card label.
         """
+        conditions = [Transaction.status == TransactionStatus.CONFIRMED.value]
+        if confirmed_from is not None:
+            conditions.append(Transaction.confirmed_at >= confirmed_from)
+        if confirmed_to is not None:
+            conditions.append(Transaction.confirmed_at < confirmed_to)
+        if occurred_from is not None:
+            conditions.append(Transaction.occurred_on >= occurred_from)
+        if occurred_to is not None:
+            conditions.append(Transaction.occurred_on <= occurred_to)
+        if min_amount is not None:
+            conditions.append(Transaction.amount >= min_amount)
+        if max_amount is not None:
+            conditions.append(Transaction.amount <= max_amount)
+        if category_names:
+            conditions.append(Category.name.in_(category_names))
         rows = await self._session.execute(
             select(Transaction, Category.name, Bank.name, Card.name, Card.last4)
             .outerjoin(Category, Category.id == Transaction.category_id)
             .outerjoin(Card, Card.id == Transaction.card_id)
             .outerjoin(Bank, Bank.id == Card.bank_id)
-            .where(
-                Transaction.status == TransactionStatus.CONFIRMED.value,
-                Transaction.confirmed_at >= start,
-                Transaction.confirmed_at < end,
-            )
+            .where(*conditions)
             .order_by(Transaction.confirmed_at.desc(), Transaction.id.desc())
+            .limit(limit)
         )
         return [
             (
@@ -229,3 +255,9 @@ class TransactionRepository:
             )
             for tx, category, bank, card, last4 in rows
         ]
+
+    async def list_confirmed_between(
+        self, start: datetime, end: datetime
+    ) -> list[tuple[Transaction, str | None, str | None]]:
+        """Returns transactions confirmed in [start, end), newest first."""
+        return await self.search_confirmed(confirmed_from=start, confirmed_to=end)

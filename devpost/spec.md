@@ -98,7 +98,7 @@ APScheduler async jobs: nudges at the stored slot times and the weekly summary o
 PRD ref: `prd.md > Adaptive nudges`.
 
 ### REST API
-Async FastAPI routers for transactions, banks and cards, budgets, goals, analytics and summaries. No auth (single user).
+Async FastAPI routers for transactions (including `GET /transactions` with receipt/confirmation date, month, amount and category filters), banks and cards, budgets, goals, analytics and summaries. No auth (single user).
 PRD ref: `prd.md > Screens and Layout`.
 
 ### Web app

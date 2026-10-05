@@ -121,3 +121,4 @@ Activity mode:
 - "Today's transactions" means transactions confirmed today in the configured timezone, not receipts dated today — the PRD wants the just-confirmed transaction visible, and a receipt is often dated earlier.
 - The accent colour and font could not be read from the reference page, so the theme uses Deloitte's published brand green and an Open Sans-first stack, held in CSS variables for the learner to retune at the checkpoint.
 - The web app calls the API through a Vite `/api` proxy, so no CORS setup is needed in FastAPI.
+- The landing page gained filters (receipt or confirmation date, range or month, amount range, categories) and became "Transactions" with "confirmed today" as the default — the learner asked for it at the early checkpoint. Auth is still undecided and would be added as its own step.

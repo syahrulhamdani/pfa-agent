@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { ComingSoon } from './pages/ComingSoon'
 import { Settings } from './pages/Settings'
-import { Today } from './pages/Today'
+import { Transactions } from './pages/Transactions'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } },
@@ -16,7 +16,8 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<Navigate to="/transactions/today" replace />} />
-            <Route path="/transactions/today" element={<Today />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/transactions/today" element={<Transactions />} />
             <Route path="/dashboard" element={<ComingSoon title="Dashboard" />} />
             <Route path="/budgets" element={<ComingSoon title="Budgets" />} />
             <Route path="/goals" element={<ComingSoon title="Goals" />} />

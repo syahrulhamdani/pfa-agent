@@ -1,9 +1,10 @@
-"""Pydantic models for transactions awaiting confirmation."""
+"""Pydantic models for transactions."""
 
+import enum
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class CardOption(BaseModel):
@@ -39,3 +40,33 @@ class TransactionRead(BaseModel):
     card: str | None
     description: str | None
     confirmed_at: datetime | None
+
+
+class DateBasis(enum.StrEnum):
+    """Which date a date filter applies to."""
+
+    OCCURRED = "occurred"  # the date on the receipt
+    CONFIRMED = "confirmed"  # the day the user confirmed it
+
+
+class TransactionFilter(BaseModel):
+    """Filters for listing confirmed transactions. Every field is optional."""
+
+    basis: DateBasis = DateBasis.OCCURRED
+    date_from: date | None = None
+    date_to: date | None = None
+    min_amount: Decimal | None = Field(None, ge=0)
+    max_amount: Decimal | None = Field(None, ge=0)
+    categories: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _ranges_make_sense(self) -> "TransactionFilter":
+        if self.date_from and self.date_to and self.date_from > self.date_to:
+            raise ValueError("date_from must not be after date_to")
+        if (
+            self.min_amount is not None
+            and self.max_amount is not None
+            and self.min_amount > self.max_amount
+        ):
+            raise ValueError("min_amount must not exceed max_amount")
+        return self

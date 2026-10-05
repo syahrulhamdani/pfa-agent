@@ -29,7 +29,7 @@ Two surfaces, one product.
 **Telegram chat** (primary interface): a single conversation with pfa. It handles uploads, confirmations, casual questions and every proactive message (nudges, Monday summary).
 
 **Web app** (reached from links in Telegram), with navigation from the landing screen to:
-- **Today's transactions** (landing screen): the day's confirmed transactions.
+- **Today's transactions** (landing screen): the day's confirmed transactions by default. The list can be filtered by receipt date or confirmation date (range or month), amount range and categories; clearing the filters returns to today.
 - **Dashboard / analytics**: aggregated data for past periods, category stats, the weekly summary, and quarterly and yearly insights.
 - **Budgets**: per-category monthly budgets, editable, with version history.
 - **Goals**: savings goals with target amount and date.
