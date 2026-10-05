@@ -9,7 +9,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
 
 ## Slices
 
-- [ ] **1. You message pfa on Telegram and it answers like a person**
+- [x] **1. You message pfa on Telegram and it answers like a person**
   Becomes usable: A running pfa process that replies to your Telegram messages using Gemini Flash Lite, only for your chat id. Also proves the three risky pieces early: Gemini model IDs, a LangGraph graph, and Telegram polling inside the FastAPI lifespan.
   Why now: These are the unverified items in the spec and everything else hangs off the bot loop, so bad news should arrive first. Project bootstrapping lives here: `pyproject.toml`, `.env.example`, `core/` config and loggers, Postgres in Docker Compose, FastAPI app.
   PRD ref: `prd.md > The Core Journey` (steps 1, 3), `prd.md > Look and Feel` (Telegram tone)
