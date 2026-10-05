@@ -36,3 +36,13 @@ def test_tracing_requires_flag_and_key():
     assert not Settings(**base, langsmith_api_key="ls").tracing_enabled
     on = Settings(**base, langsmith_tracing=True, langsmith_api_key="ls")
     assert on.tracing_enabled
+
+
+def test_checkpoint_conn_string_drops_asyncpg_driver():
+    s = Settings(
+        telegram_bot_token="t",
+        telegram_chat_id=1,
+        gemini_api_key="k",
+        database_url="postgresql+asyncpg://u:p@h:5432/d",
+    )
+    assert s.checkpoint_conn_string == "postgresql://u:p@h:5432/d"

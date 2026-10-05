@@ -1,12 +1,15 @@
-"""Chat graph: casual replies from Flash Lite, with per-chat memory."""
+"""Chat graph: casual replies from Flash Lite, with persistent per-chat memory."""
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import SystemMessage
-from langgraph.checkpoint.memory import InMemorySaver
+from langchain_core.messages import SystemMessage, trim_messages
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from pfa.core.exceptions import LLMError
+
+# Only the most recent messages are sent to Gemini; the full history stays stored.
+MAX_HISTORY_MESSAGES = 20
 
 BUSY_REPLY = "I'm busy right now. Please try again in a moment."
 
@@ -19,11 +22,15 @@ SYSTEM_PROMPT = (
 )
 
 
-def build_chat_graph(model: BaseChatModel) -> CompiledStateGraph:
+def build_chat_graph(
+    model: BaseChatModel, checkpointer: BaseCheckpointSaver
+) -> CompiledStateGraph:
     """Builds the chat graph.
 
     Args:
         model: The chat model to call.
+        checkpointer: Where conversation history is stored. Postgres in the app,
+            in memory in tests.
 
     Returns:
         A compiled graph. Invoke it with a `thread_id` in the config to keep a
@@ -31,16 +38,21 @@ def build_chat_graph(model: BaseChatModel) -> CompiledStateGraph:
     """
 
     async def reply(state: MessagesState) -> dict:
-        response = await model.ainvoke(
-            [SystemMessage(SYSTEM_PROMPT), *state["messages"]]
+        history = trim_messages(
+            state["messages"],
+            strategy="last",
+            token_counter=len,
+            max_tokens=MAX_HISTORY_MESSAGES,
+            start_on="human",
         )
+        response = await model.ainvoke([SystemMessage(SYSTEM_PROMPT), *history])
         return {"messages": [response]}
 
     graph = StateGraph(MessagesState)
     graph.add_node("reply", reply)
     graph.add_edge(START, "reply")
     graph.add_edge("reply", END)
-    return graph.compile(checkpointer=InMemorySaver())
+    return graph.compile(checkpointer=checkpointer)
 
 
 async def chat_reply(graph: CompiledStateGraph, chat_id: int, text: str) -> str:

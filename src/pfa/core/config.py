@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://pfa:pfa@localhost:5432/pfa"
+    database_url: str = "postgresql+asyncpg://pfa:pfa@localhost:5433/pfa"
     telegram_bot_token: str = Field(min_length=1)
     telegram_chat_id: int
     gemini_api_key: str = Field(min_length=1)
@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     langsmith_tracing: bool = False
     langsmith_api_key: str = ""
     langsmith_project: str = "pfa"
+
+    @property
+    def checkpoint_conn_string(self) -> str:
+        """Returns DATABASE_URL in the plain form psycopg expects."""
+        return self.database_url.replace("+asyncpg", "", 1)
 
     @property
     def tracing_enabled(self) -> bool:

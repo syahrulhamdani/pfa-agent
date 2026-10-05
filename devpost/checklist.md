@@ -113,3 +113,4 @@ Activity mode:
 ## Revisions
 
 - Added LangSmith observability (env-driven tracing, off by default, named `chat` runs) — the learner asked for it after slice 1; the spec had listed LangSmith as not used. Later graphs should set a `run_name` and tags the same way.
+- Chat history moved from in-memory to the LangGraph Postgres checkpointer, with the last 20 messages sent to Gemini — the learner saw the bot forget context across restarts, and slice 2's confirmation pause needs the same checkpointer anyway. The compose database now maps to host port 5433 because a local Postgres on the learner's Mac already owns 5432.

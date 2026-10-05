@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from loguru import logger
 
 from pfa.bot.app import build_application
@@ -25,21 +26,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "enabled" if settings.tracing_enabled else "disabled",
         settings.langsmith_project,
     )
-    chat_graph = build_chat_graph(build_chat_model(settings))
-    application = build_application(settings, chat_graph)
-    app.state.telegram = application
+    async with AsyncPostgresSaver.from_conn_string(
+        settings.checkpoint_conn_string
+    ) as checkpointer:
+        await checkpointer.setup()
+        chat_graph = build_chat_graph(build_chat_model(settings), checkpointer)
+        application = build_application(settings, chat_graph)
+        app.state.telegram = application
 
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling(drop_pending_updates=True)
-    logger.info("Telegram polling started")
-    try:
-        yield
-    finally:
-        await application.updater.stop()
-        await application.stop()
-        await application.shutdown()
-        logger.info("Telegram polling stopped")
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling(drop_pending_updates=True)
+        logger.info("Telegram polling started")
+        try:
+            yield
+        finally:
+            await application.updater.stop()
+            await application.stop()
+            await application.shutdown()
+            logger.info("Telegram polling stopped")
 
 
 app = FastAPI(title="pfa", lifespan=lifespan)
