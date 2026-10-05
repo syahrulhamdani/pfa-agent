@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pfa: Technical Spec</title>
+<style>
+  :root { --bg:#ffffff; --panel:#f3f4f4; --ink:#1d1f1f; --muted:#61676a; --line:#d9dcdd; --accent:#4c8c0a; --accent-soft:#eaf3dd; --warn:#a4560f; --warn-soft:#fbeedd; --blue:#2f5f9e; --blue-soft:#e6eef8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111313; --panel:#1b1e1e; --ink:#ececec; --muted:#9aa1a4; --line:#2e3333; --accent:#8fd13f; --accent-soft:#22300f; --warn:#f0a867; --warn-soft:#352816; --blue:#8fb4ea; --blue-soft:#1b2a40; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:920px; margin:0 auto; padding:32px 16px 72px; }
+  h1 { font-size:2rem; margin:8px 0 4px; }
+  h2 { font-size:1.2rem; margin:32px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--accent); }
+  .tag { display:inline-block; padding:2px 10px; border-radius:99px; background:var(--accent-soft); color:var(--accent); font-size:.8rem; font-weight:700; }
+  .lead { color:var(--muted); }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 18px; margin:10px 0; }
+  .note { background:var(--warn-soft); border:1px solid var(--warn); border-radius:8px; padding:10px 14px; font-size:.95rem; margin:10px 0; }
+  svg { width:100%; height:auto; display:block; }
+  svg text { fill:var(--ink); font:12.5px system-ui,sans-serif; }
+  svg .api { fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.5; }
+  svg .ext { fill:var(--panel); stroke:var(--line); stroke-width:1.5; }
+  svg .llm { fill:var(--blue-soft); stroke:var(--blue); stroke-width:1.5; }
+  svg .ar { stroke:var(--muted); stroke-width:1.5; fill:none; marker-end:url(#h); }
+  svg .l { fill:var(--muted); font-size:11px; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:.85rem; color:var(--muted); }
+  .steps { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .steps button { width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; font:inherit; font-weight:700; }
+  .steps button[aria-selected="true"] { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #stepbox { min-height:110px; }
+  #stepbox .where { color:var(--blue); font-weight:600; font-size:.9rem; }
+  .ctrl { display:flex; gap:8px; margin-top:8px; }
+  .ctrl button { border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:6px; padding:5px 12px; cursor:pointer; font:inherit; }
+  details { border:1px solid var(--line); border-radius:8px; margin:8px 0; background:var(--panel); }
+  summary { cursor:pointer; padding:10px 14px; font-weight:600; }
+  details > div { padding:0 18px 12px; }
+  code, pre { font-family:ui-monospace,Menlo,monospace; font-size:.88rem; }
+  pre { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.92rem; }
+  td, th { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--panel); }
+  ul { padding-left:20px; margin:6px 0; }
+</style>
+</head>
+<body>
+<main>
+  <span class="tag">status: approved</span>
+  <h1>pfa: Technical Spec</h1>
+  <p class="lead">One async Python process (API, Telegram polling, scheduler, LangGraph graphs), one Postgres database, one React web app.</p>
+
+  <h2>How the Pieces Fit</h2>
+  <svg viewBox="0 0 860 380" role="img" aria-label="Architecture: Telegram and web app talk to a FastAPI process containing bot, API, scheduler and LangGraph graphs, backed by Postgres and Gemini">
+    <defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs>
+    <rect class="ext" x="10" y="40" width="130" height="60" rx="8"/><text x="75" y="68" text-anchor="middle" font-weight="700">Telegram</text><text x="75" y="86" text-anchor="middle" class="l">you, on your phone</text>
+    <rect class="ext" x="10" y="250" width="130" height="60" rx="8"/><text x="75" y="278" text-anchor="middle" font-weight="700">Web app</text><text x="75" y="296" text-anchor="middle" class="l">React, refetch every few s</text>
+
+    <rect x="190" y="10" width="480" height="360" rx="12" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="205" y="30" class="l">one async FastAPI process (uvicorn)</text>
+    <rect class="api" x="210" y="45" width="130" height="50" rx="8"/><text x="275" y="75" text-anchor="middle" font-weight="700">Bot (polling)</text>
+    <rect class="api" x="210" y="255" width="130" height="50" rx="8"/><text x="275" y="285" text-anchor="middle" font-weight="700">REST API</text>
+    <rect class="api" x="530" y="45" width="130" height="50" rx="8"/><text x="595" y="75" text-anchor="middle" font-weight="700">Scheduler</text>
+    <rect class="llm" x="330" y="130" width="200" height="100" rx="8"/>
+    <text x="430" y="152" text-anchor="middle" font-weight="700">LangGraph graphs</text>
+    <text x="430" y="175" text-anchor="middle" class="l">extraction (pauses to confirm)</text>
+    <text x="430" y="193" text-anchor="middle" class="l">chat</text>
+    <text x="430" y="211" text-anchor="middle" class="l">recommendations</text>
+    <rect class="api" x="330" y="305" width="200" height="50" rx="8"/><text x="430" y="328" text-anchor="middle" font-weight="700">Services + repositories</text><text x="430" y="344" text-anchor="middle" class="l">analytics, nudges, async SQL</text>
+
+    <rect class="ext" x="720" y="130" width="130" height="60" rx="8"/><text x="785" y="157" text-anchor="middle" font-weight="700">Gemini</text><text x="785" y="175" text-anchor="middle" class="l">Flash Lite / Pro</text>
+    <rect class="ext" x="720" y="290" width="130" height="60" rx="8"/><text x="785" y="317" text-anchor="middle" font-weight="700">Postgres</text><text x="785" y="335" text-anchor="middle" class="l">data + graph state</text>
+
+    <path class="ar" d="M140 70 L210 70"/>
+    <path class="ar" d="M140 280 L210 280"/>
+    <path class="ar" d="M275 95 L360 130"/>
+    <path class="ar" d="M595 95 L500 130"/>
+    <path class="ar" d="M530 180 L720 160"/>
+    <path class="ar" d="M430 230 L430 305"/>
+    <path class="ar" d="M340 280 L350 305"/>
+    <path class="ar" d="M530 330 L720 320"/>
+  </svg>
+  <div class="legend"><span>Green: your code</span><span>Blue: LLM orchestration</span><span>Gray: outside the process</span></div>
+  <div class="card"><b>Async everywhere it can be:</b> async FastAPI endpoints, async SQLAlchemy with asyncpg, async python-telegram-bot, async LangGraph calls, APScheduler's asyncio scheduler, blocking file parsing pushed to a thread, and async fetches on the frontend.</div>
+
+  <h2>Follow One Receipt</h2>
+  <p class="lead">The PRD's core journey, traced through the pieces. Step through it.</p>
+  <div class="steps" id="steps" role="tablist"></div>
+  <div class="card" id="stepbox" aria-live="polite"></div>
+  <div class="ctrl"><button id="prev">Previous</button><button id="next">Next</button></div>
+
+  <h2>Components</h2>
+  <details open><summary>Extraction graph</summary><div>Nodes: detect type, parse, extract (Gemini Pro), infer card, validate required fields, ask for missing input or await confirmation (interrupt), commit. Statement summary (count, highest, lowest, total) is computed in code.<br><code>prd.md > Upload and extraction</code>, <code>prd.md > Confirmation and data fields</code></div></details>
+  <details><summary>Chat graph and recommendation graph</summary><div>Flash Lite routes a message to casual reply, insights lookup, or recommendations. Numbers always come from the analytics service.<br><code>prd.md > Weekly summary and recommendations</code></div></details>
+  <details><summary>Nudge scheduler</summary><div>Fewer than 20 confirmed transactions: six default slots. Otherwise six clusters of past upload times. Ignored nudges get no follow-up.<br><code>prd.md > Adaptive nudges</code></div></details>
+  <details><summary>REST API and web app</summary><div>Async routers; React pages Today (landing), Dashboard, Budgets, Goals, Settings (banks and cards).<br><code>prd.md > Screens and Layout</code></div></details>
+
+  <h2>Data Model</h2>
+  <table>
+    <tr><th>Table</th><th>Holds</th></tr>
+    <tr><td>banks, cards</td><td>Set up in the web app. A card belongs to a bank.</td></tr>
+    <tr><td>categories</td><td>Seeded list.</td></tr>
+    <tr><td>uploads</td><td>Each file you send and its status.</td></tr>
+    <tr><td>transactions</td><td>Fields from the PRD plus status <code>pending</code> or <code>confirmed</code>. Only confirmed rows count.</td></tr>
+    <tr><td>budget_versions</td><td>Category, month, amount, version. Highest version is current.</td></tr>
+    <tr><td>goals</td><td>Name, target amount, target date, saved amount (assumption).</td></tr>
+    <tr><td>nudge_slots, weekly_summaries</td><td>Slot times (default or learned); saved weekly stats and recommendations.</td></tr>
+  </table>
+
+  <h2>File Structure</h2>
+<pre>pfa/
+├── pyproject.toml · docker-compose.yml · .env.example · alembic.ini
+├── src/pfa/
+│   ├── main.py          # lifespan: bot + scheduler + checkpointer
+│   ├── core/            # config, loggers, exceptions
+│   ├── models/  schemas/  repository/
+│   ├── services/        # analytics, nudges, uploads
+│   ├── graphs/          # extraction, chat, recommendations, llm
+│   ├── bot/  api/  migrations/
+├── tests/               # conftest.py + async tests
+├── web/src/             # pages, components, api, theme.css
+└── devpost/</pre>
+
+  <h2>Run It</h2>
+<pre>docker compose up -d db
+uv run --env-file .env.example alembic upgrade head
+uv run --env-file .env.example uvicorn pfa.main:app --reload
+cd web &amp;&amp; npm install &amp;&amp; npm run dev      # then open http://localhost:5173</pre>
+  <p>For the demo, use <code>/demo_summary</code> and <code>/demo_nudge</code> in Telegram.</p>
+
+  <h2>Failure Modes and Simplifications</h2>
+  <details open><summary>What can break</summary><div><ul>
+    <li><b>Blurry or failed extraction:</b> unreadable fields go back to you; a total failure marks the upload failed and asks you to resend.</li>
+    <li><b>Gemini rate limit:</b> one retry, then a short message.</li>
+    <li><b>App stops:</b> nudges stop; paused confirmations resume from Postgres.</li>
+  </ul></div></details>
+  <details><summary>What was simplified</summary><div><ul>
+    <li>No login (single user via chat id), polling instead of webhooks, refetch instead of websockets, in-process scheduler, manual saved amount on goals, local-only run.</li>
+  </ul></div></details>
+
+  <h2>Open Issues</h2>
+  <div class="note"><ul>
+    <li><b>Confirm:</b> goal progress is a manually edited saved amount.</li>
+    <li><b>Confirm:</b> ignoring a nudge counts as no data.</li>
+    <li><b>Check early in the build:</b> Gemini model IDs, LangGraph interrupt and Postgres checkpointer, real extraction quality.</li>
+    <li><b>Can wait:</b> accent color and font; quarterly and yearly insights placement.</li>
+  </ul></div>
+</main>
+<script>
+  var S = [
+    ["Bot", "You send a receipt or statement. The bot receives it by polling, records an upload, and replies \"processing\" right away."],
+    ["Extraction graph", "Runs in the background. Detects the type, parses CSV/Excel in a thread, sends images and PDFs to Gemini Pro, infers the card, checks required fields."],
+    ["Bot", "Replies to your original message with the extracted fields. Missing or blurry fields are listed; a missing card appears as buttons. Statements show count, highest, lowest and total."],
+    ["Extraction graph (paused)", "The graph waits for you. A button tap or a typed correction resumes it from Postgres-stored state."],
+    ["Services + Postgres", "On confirm, pending rows become confirmed. The reply includes a link to Today's transactions."],
+    ["Web app + REST API", "The page loads today's transactions and refetches every few seconds, so the new row appears. You manage cards, budgets and goals here."],
+    ["Scheduler + recommendation graph", "Nudges fire at slot times. On Monday the graph computes aggregates, Flash Lite writes recommendations, and the summary goes to Telegram with a dashboard link."]
+  ];
+  var cur = 0, steps = document.getElementById("steps"), box = document.getElementById("stepbox");
+  S.forEach(function (s, i) {
+    var b = document.createElement("button"); b.textContent = i + 1; b.setAttribute("role", "tab");
+    b.onclick = function () { go(i); }; steps.appendChild(b);
+  });
+  function go(i) {
+    cur = Math.max(0, Math.min(S.length - 1, i));
+    box.innerHTML = '<div class="where"></div><p></p>';
+    box.firstChild.textContent = "Step " + (cur + 1) + ": " + S[cur][0];
+    box.lastChild.textContent = S[cur][1];
+    steps.querySelectorAll("button").forEach(function (b, j) { b.setAttribute("aria-selected", j === cur ? "true" : "false"); });
+  }
+  document.getElementById("prev").onclick = function () { go(cur - 1); };
+  document.getElementById("next").onclick = function () { go(cur + 1); };
+  go(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal Finance Agent: Scope</title>
+<style>
+  :root {
+    --bg: #f6f7f4; --card: #ffffff; --ink: #1b2420; --muted: #5b6760;
+    --line: #dde2dc; --accent: #1f7a5c; --accent-soft: #e0f1ea;
+    --warn: #b4531a; --warn-soft: #fbece0; --later: #3b5fa8; --later-soft: #e5ecf8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121815; --card: #1b2420; --ink: #e8efe9; --muted: #98a59d;
+      --line: #2c3832; --accent: #5fcf9f; --accent-soft: #1d3a2e;
+      --warn: #f0a068; --warn-soft: #3a2a1d; --later: #8fb0f0; --later-soft: #1f2a42;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 2rem; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 0 0 8px; color: var(--accent); }
+  .status { display: inline-block; padding: 2px 10px; border-radius: 99px;
+    background: var(--accent-soft); color: var(--accent); font-size: .8rem; font-weight: 600; }
+  .lead { color: var(--muted); font-size: 1.05rem; margin: 8px 0 24px; }
+  section, .card { background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+  .kernel { border-left: 5px solid var(--accent); }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--ink); font: 13px system-ui, sans-serif; }
+  svg .box { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  svg .box2 { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+  svg .hot { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.5; }
+  svg .arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#a); }
+  svg .lbl { fill: var(--muted); font-size: 11px; }
+  details { border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; background: var(--card); }
+  summary { cursor: pointer; padding: 10px 14px; font-weight: 600; }
+  details > div { padding: 0 16px 12px; }
+  details.now summary { color: var(--accent); }
+  details.later summary { color: var(--later); }
+  details.cut summary { color: var(--warn); }
+  ul { margin: 6px 0; padding-left: 20px; }
+  ol.steps { padding-left: 0; list-style: none; counter-reset: s; }
+  ol.steps li { counter-increment: s; padding: 10px 12px 10px 48px; position: relative;
+    border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 12px; top: 10px;
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--bg);
+    display: grid; place-items: center; font-weight: 700; font-size: .85rem; }
+  .note { background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 10px;
+    padding: 10px 14px; font-size: .95rem; }
+  .slots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .slots button { border: 1px solid var(--accent); background: var(--accent-soft); color: var(--ink);
+    border-radius: 99px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .slots button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+  #slot-out { margin-top: 8px; color: var(--muted); font-size: .95rem; min-height: 1.6em; }
+</style>
+</head>
+<body>
+<main>
+  <span class="status">status: approved</span>
+  <h1>Personal Finance Agent</h1>
+  <p class="lead">A Telegram-first agent that turns uploaded receipts and statements into live analytics, then nudges, summarizes and recommends so one person can run their own money.</p>
+
+  <section class="kernel">
+    <h2>The Unique Kernel</h2>
+    <p>Recommendations and insights that adapt to the running transactions: weekly summaries that reflect next week's budget, budget and goal suggestions from real spending, and an <strong>adaptive nudge</strong>. With no bank integration, the agent learns when you usually transact from past timestamps and asks you to upload, or to confirm that nothing was spent.</p>
+    <p style="margin-bottom:4px;color:var(--muted)">Cold start: six slots a day around meals. Tap a slot to see the nudge.</p>
+    <div class="slots" id="slots"></div>
+    <div id="slot-out" aria-live="polite"></div>
+  </section>
+
+  <section>
+    <h2>Who It's For</h2>
+    <p>The learner themself: managing their own money across several banks, multiple cards per bank account and investment portfolios, with no bank integration. Today that means tracking and categorizing by hand.</p>
+  </section>
+
+  <section>
+    <h2>The Core Loop</h2>
+    <svg viewBox="0 0 820 300" role="img" aria-label="Diagram: user uploads via Telegram, extraction feeds the web app, nudges and weekly summary return to Telegram">
+      <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="fill:var(--muted)"/></marker></defs>
+      <rect class="box" x="20" y="110" width="140" height="70" rx="10"/>
+      <text x="90" y="141" text-anchor="middle" font-weight="700">You</text>
+      <text x="90" y="160" text-anchor="middle" class="lbl">chat on Telegram</text>
+
+      <rect class="box2" x="230" y="30" width="170" height="70" rx="10"/>
+      <text x="315" y="60" text-anchor="middle" font-weight="700">Extract</text>
+      <text x="315" y="80" text-anchor="middle" class="lbl">Gemini Pro: image, PDF, CSV, Excel</text>
+
+      <rect class="box2" x="470" y="30" width="170" height="70" rx="10"/>
+      <text x="555" y="60" text-anchor="middle" font-weight="700">Aggregate</text>
+      <text x="555" y="80" text-anchor="middle" class="lbl">cards, banks, portfolios</text>
+
+      <rect class="box" x="660" y="110" width="140" height="70" rx="10"/>
+      <text x="730" y="141" text-anchor="middle" font-weight="700">Web app</text>
+      <text x="730" y="160" text-anchor="middle" class="lbl">analytics, budgets, goals</text>
+
+      <rect class="hot" x="300" y="200" width="320" height="76" rx="10"/>
+      <text x="460" y="228" text-anchor="middle" font-weight="700">Insight engine (the kernel)</text>
+      <text x="460" y="248" text-anchor="middle" class="lbl">adaptive nudge · weekly summary · recommendations</text>
+
+      <path class="arrow" d="M160 130 L230 80"/><text x="170" y="95" class="lbl">upload</text>
+      <path class="arrow" d="M400 65 L470 65"/>
+      <path class="arrow" d="M640 80 L690 110"/>
+      <path class="arrow" d="M555 100 L500 200"/>
+      <path class="arrow" d="M300 238 L110 182"/><text x="130" y="228" class="lbl">nudge, summary</text>
+    </svg>
+    <p>Each week starts with a summary on the web app and Telegram: last week's stats, category breakdown, and recommendations against the remaining budget. Between uploads, nudges bring you back.</p>
+  </section>
+
+  <section>
+    <h2>What "Working" Looks Like</h2>
+    <p style="color:var(--muted)">A one-minute demo video:</p>
+    <ol class="steps">
+      <li><strong>Upload in Telegram.</strong> Chat feels human. The agent replies when processed, with a link to the web app.</li>
+      <li><strong>Web app.</strong> Explore aggregated data, then manage budgets and financial goals.</li>
+      <li><strong>Back to Telegram.</strong> Monday summary, a nudge, and recommendations arrive.</li>
+    </ol>
+    <div class="note">Step 3 is triggered on demand for the demo, not by waiting for a real Monday.</div>
+    <p><em>The "oh, that's cool" beat:</em> the receipt becomes live analytics, then the agent speaks up on its own with advice grounded in that data.</p>
+  </section>
+
+  <section>
+    <h2>The POC Boundary</h2>
+    <details class="now" open><summary>Now (in the proof of concept)</summary><div><ul>
+      <li>Telegram chat with the agent (Gemini Flash Lite)</li>
+      <li>Upload and extraction: images, PDF, CSV, Excel (Gemini Pro)</li>
+      <li>Multiple cards under each bank account</li>
+      <li>Investment portfolios</li>
+      <li>Web app: aggregated transactions, categories, budgets, goals</li>
+      <li>Weekly summary (web and Telegram), plus quarterly and yearly insights</li>
+      <li>Adaptive nudge with "no transactions" confirmation, six slots a day to start</li>
+      <li>Recommendations for insights, budgets and goals</li>
+    </ul></div></details>
+    <details class="later"><summary>Later</summary><div><ul>
+      <li>WhatsApp as a second channel (assumed later; please confirm)</li>
+      <li>Email digest for reminders</li>
+    </ul></div></details>
+    <details class="cut"><summary>Explicitly cut</summary><div><ul>
+      <li>Bank integration: no real transaction feed, so uploads plus nudge-and-confirm stand in.</li>
+    </ul></div></details>
+  </section>
+
+  <section>
+    <h2>Why This Matters</h2>
+    <p>A tool for the learner's own finances, and a way to learn how to work with coding agents without heavy prompting.</p>
+  </section>
+
+  <div class="note"><strong>Honest gut check:</strong> the kernel and demo arc are sharp. The boundary is large for 2–4 hours, so expect the PRD and spec to keep some parts thin (for example, seeded portfolio positions). Look and feel is still open for <code>3-prd</code>.</div>
+</main>
+<script>
+  var slots = [
+    ["Breakfast", "Morning! Any breakfast or commute spend to log? Upload a receipt, or tap \"Nothing spent\"."],
+    ["Mid-morning", "Quick check-in: any purchases since breakfast? Upload or confirm none."],
+    ["Lunch", "Lunch time just passed. Got a receipt to share, or was it a no-spend lunch?"],
+    ["Afternoon", "Anything this afternoon? Upload it or confirm nothing was spent."],
+    ["Dinner", "Dinner receipts? Upload now so tonight's budget stays accurate."],
+    ["Evening", "Last check of the day: upload anything left, or confirm no more spending."]
+  ];
+  var wrap = document.getElementById("slots"), out = document.getElementById("slot-out");
+  slots.forEach(function (s, i) {
+    var b = document.createElement("button");
+    b.textContent = s[0]; b.setAttribute("aria-pressed", "false");
+    b.onclick = function () {
+      wrap.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", "false"); });
+      b.setAttribute("aria-pressed", "true");
+      out.textContent = "Agent: " + s[1];
+    };
+    wrap.appendChild(b);
+  });
+</script>
+</body>
+</html>

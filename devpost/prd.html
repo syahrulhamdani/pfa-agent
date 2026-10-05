@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pfa: Product Requirements</title>
+<style>
+  /* Provisional theme inspired by the reference page: white, dark gray, one accent. Accent hex is a placeholder. */
+  :root { --bg:#ffffff; --panel:#f3f4f4; --ink:#1d1f1f; --muted:#61676a; --line:#d9dcdd; --accent:#4c8c0a; --accent-soft:#eaf3dd; --warn:#a4560f; --warn-soft:#fbeedd; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111313; --panel:#1b1e1e; --ink:#ececec; --muted:#9aa1a4; --line:#2e3333; --accent:#8fd13f; --accent-soft:#22300f; --warn:#f0a867; --warn-soft:#352816; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:900px; margin:0 auto; padding:32px 16px 72px; }
+  h1 { font-size:2rem; margin:8px 0 4px; letter-spacing:-.01em; }
+  h2 { font-size:1.2rem; margin:32px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--accent); }
+  .tag { display:inline-block; padding:2px 10px; border-radius:99px; background:var(--accent-soft); color:var(--accent); font-size:.8rem; font-weight:700; }
+  .lead { color:var(--muted); }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 18px; margin:10px 0; }
+  .note { background:var(--warn-soft); border:1px solid var(--warn); border-radius:8px; padding:10px 14px; font-size:.95rem; margin:10px 0; }
+  svg { width:100%; height:auto; display:block; }
+  svg text { fill:var(--ink); font:12.5px system-ui,sans-serif; }
+  svg .n { fill:var(--panel); stroke:var(--line); stroke-width:1.5; }
+  svg .tg { fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.5; }
+  svg .web { fill:var(--bg); stroke:var(--ink); stroke-width:1.5; }
+  svg .ar { stroke:var(--muted); stroke-width:1.5; fill:none; marker-end:url(#h); }
+  svg .l { fill:var(--muted); font-size:11px; }
+  .legend { display:flex; gap:16px; font-size:.85rem; color:var(--muted); flex-wrap:wrap; }
+  .stepper { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .stepper button { border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:6px; padding:6px 12px; font:inherit; font-size:.9rem; cursor:pointer; }
+  .stepper button[aria-selected="true"] { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .panel { display:none; } .panel.on { display:block; }
+  details { border:1px solid var(--line); border-radius:8px; margin:8px 0; background:var(--panel); }
+  summary { cursor:pointer; padding:10px 14px; font-weight:600; }
+  details > div { padding:0 18px 12px; }
+  ul { padding-left:20px; margin:6px 0; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+  .tile { border:1px solid var(--line); border-radius:8px; padding:12px; background:var(--bg); }
+  .tile b { display:block; color:var(--accent); }
+  .cmp { width:100%; border-collapse:collapse; font-size:.92rem; }
+  .cmp td, .cmp th { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  .cmp th { background:var(--panel); }
+  .req { color:var(--accent); font-weight:700; }
+</style>
+</head>
+<body>
+<main>
+  <span class="tag">status: approved</span>
+  <h1>pfa: Product Requirements</h1>
+  <p class="lead">pfa (personal finance assistant) is a Telegram-first agent plus a web app that turns uploaded receipts and statements into confirmed, aggregated data, then nudges, summarizes and recommends for one person managing their own money.</p>
+
+  <h2>The Core Journey</h2>
+  <p class="lead">Scope said "chat, upload, see analytics". Now each step is concrete.</p>
+  <svg viewBox="0 0 860 330" role="img" aria-label="Journey diagram: upload on Telegram, processing, confirmation, web app, then proactive nudges and Monday summary back to Telegram">
+    <defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs>
+    <rect class="tg" x="10" y="20" width="150" height="62" rx="8"/><text x="85" y="46" text-anchor="middle" font-weight="700">1. Upload</text><text x="85" y="64" text-anchor="middle" class="l">receipt / statement</text>
+    <rect class="tg" x="190" y="20" width="150" height="62" rx="8"/><text x="265" y="46" text-anchor="middle" font-weight="700">2. Processing</text><text x="265" y="64" text-anchor="middle" class="l">instant ack, chat stays open</text>
+    <rect class="tg" x="370" y="20" width="150" height="62" rx="8"/><text x="445" y="46" text-anchor="middle" font-weight="700">3. Extracted</text><text x="445" y="64" text-anchor="middle" class="l">reply to the upload</text>
+    <rect class="tg" x="550" y="20" width="150" height="62" rx="8"/><text x="625" y="46" text-anchor="middle" font-weight="700">4. Confirm</text><text x="625" y="64" text-anchor="middle" class="l">or fix; then saved</text>
+    <rect class="web" x="700" y="130" width="150" height="62" rx="8"/><text x="775" y="156" text-anchor="middle" font-weight="700">5. Web app</text><text x="775" y="174" text-anchor="middle" class="l">Today's transactions</text>
+    <rect class="web" x="520" y="130" width="150" height="62" rx="8"/><text x="595" y="156" text-anchor="middle" font-weight="700">6. Explore</text><text x="595" y="174" text-anchor="middle" class="l">dashboard, budgets, goals</text>
+    <rect class="n" x="150" y="250" width="200" height="62" rx="8"/><text x="250" y="276" text-anchor="middle" font-weight="700">Adaptive nudges</text><text x="250" y="294" text-anchor="middle" class="l">6 slots a day, then learned</text>
+    <rect class="n" x="420" y="250" width="220" height="62" rx="8"/><text x="530" y="276" text-anchor="middle" font-weight="700">Monday summary</text><text x="530" y="294" text-anchor="middle" class="l">short, link to dashboard</text>
+    <path class="ar" d="M160 51 L190 51"/><path class="ar" d="M340 51 L370 51"/><path class="ar" d="M520 51 L550 51"/>
+    <path class="ar" d="M650 82 L760 130"/><path class="ar" d="M700 161 L670 161"/>
+    <path class="ar" d="M250 250 L120 84"/><path class="ar" d="M420 281 L352 281"/>
+    <path class="ar" d="M530 250 L330 84" stroke-dasharray="4 3"/>
+  </svg>
+  <div class="legend"><span>Green: Telegram</span><span>Outlined: web app</span><span>Gray: proactive messages from pfa</span></div>
+
+  <h2>Behavior by Area</h2>
+  <div class="stepper" role="tablist" id="tabs"></div>
+
+  <div class="panel" data-t="Upload">
+    <div class="card"><b>What happens.</b> Receipts (images) and statements (PDF, CSV, Excel) are accepted. pfa acknowledges instantly, keeps chatting, then replies to that exact upload with the extraction.</div>
+    <details open><summary>Acceptance criteria</summary><div><ul>
+      <li>Sending a receipt gets an immediate "processing" reply.</li>
+      <li>A second upload or casual question is answered while the first processes.</li>
+      <li>The result arrives threaded to the original upload.</li>
+    </ul></div></details>
+    <details><summary>Edge cases</summary><div><ul>
+      <li><b>Blurry receipt:</b> pfa returns what it read and asks you to enter the unreadable fields.</li>
+      <li><b>Statement:</b> many transactions, each extracted into the same fields.</li>
+    </ul></div></details>
+  </div>
+
+  <div class="panel" data-t="Confirm">
+    <table class="cmp">
+      <tr><th>Field</th><th>Required?</th><th>How it's filled</th></tr>
+      <tr><td>Merchant</td><td class="req">Required</td><td>Extracted</td></tr>
+      <tr><td>Amount</td><td class="req">Required</td><td>Extracted</td></tr>
+      <tr><td>Date</td><td class="req">Required</td><td>Extracted</td></tr>
+      <tr><td>Category</td><td class="req">Required</td><td>Extracted / suggested</td></tr>
+      <tr><td>Account / card</td><td class="req">Required</td><td>Inferred from the receipt, else pfa asks you</td></tr>
+      <tr><td>Description</td><td>Optional</td><td>Prefilled by pfa from the content</td></tr>
+    </table>
+    <details open><summary>Acceptance criteria</summary><div><ul>
+      <li>The reply shows all fields with a prefilled description.</li>
+      <li>Nothing appears in the web app until you confirm.</li>
+      <li>Missing account/card triggers a question before saving.</li>
+      <li>Confirmed transactions show in Today's transactions and aggregates.</li>
+    </ul></div></details>
+  </div>
+
+  <div class="panel" data-t="Web app">
+    <div class="grid">
+      <div class="tile"><b>Today's transactions</b>Landing screen from the Telegram link.</div>
+      <div class="tile"><b>Dashboard</b>Aggregates, category stats, weekly summary, quarterly and yearly insights (assumed here).</div>
+      <div class="tile"><b>Budgets</b>Per category, per month. Editable, versioned.</div>
+      <div class="tile"><b>Goals</b>Target amount and date, with progress.</div>
+    </div>
+    <details open><summary>Acceptance criteria</summary><div><ul>
+      <li>The link in pfa's reply opens Today's transactions with the just-confirmed item.</li>
+      <li>Navigation reaches dashboard, budgets and goals from there.</li>
+      <li>A budget can be created and edited; the earlier version remains viewable.</li>
+      <li>A goal can be created and shows progress.</li>
+    </ul></div></details>
+    <details><summary>Empty state</summary><div>Screens with no data show a short "nothing here yet" line (assumption).</div></details>
+  </div>
+
+  <div class="panel" data-t="Nudges">
+    <div class="card"><b>Cold start:</b> six slots a day, including breakfast, lunch and dinner. <b>Later:</b> slots follow the timestamps of past transactions.</div>
+    <details open><summary>Acceptance criteria</summary><div><ul>
+      <li>With no history, nudges arrive in six daily slots.</li>
+      <li>With history, timing reflects when past transactions occurred.</li>
+      <li>Ignoring a nudge produces no follow-up.</li>
+    </ul></div></details>
+  </div>
+
+  <div class="panel" data-t="Summary">
+    <div class="card"><b>Telegram:</b> a short Monday summary with a link to the dashboard. <b>Web app:</b> last week's stats, category stats, and recommendations against the remaining budget.</div>
+    <details open><summary>Acceptance criteria</summary><div><ul>
+      <li>The Telegram summary is short and links to the dashboard.</li>
+      <li>The dashboard shows stats, categories and recommendations.</li>
+      <li>Asking pfa for insights in chat answers from confirmed data.</li>
+    </ul></div></details>
+    <div class="note">For the demo video, the summary and nudge must be triggerable on demand (assumption; mechanism decided in the spec).</div>
+  </div>
+
+  <h2>Look and Feel</h2>
+  <div class="card">Theme taken from Deloitte's AI &amp; Data page: white backgrounds, dark gray text, light gray dividers, one accent color, clean sans-serif type, modular cards, and a professional tone. The accent color in this page is a placeholder; the exact color and font get confirmed in the spec.</div>
+
+  <h2>Boundary</h2>
+  <details open><summary>What we're building</summary><div><ul>
+    <li>Telegram chat with casual Q&amp;A for insights and recommendations</li>
+    <li>Upload and extraction (images, PDF, CSV, Excel) with confirmation</li>
+    <li>Multiple cards under each bank account</li>
+    <li>Web app: Today's transactions, dashboard, budgets, goals</li>
+    <li>Weekly summary, plus quarterly and yearly insights</li>
+    <li>Adaptive nudges, triggerable for the demo</li>
+  </ul></div></details>
+  <details><summary>Deferred from the POC</summary><div><ul>
+    <li>Investment portfolios (excluded by you; next after the PoC)</li>
+    <li>WhatsApp; email digest</li>
+  </ul></div></details>
+  <details><summary>Non-goals</summary><div><ul>
+    <li>Bank integration</li>
+    <li>Saving unconfirmed extractions</li>
+  </ul></div></details>
+
+  <h2>Open Questions</h2>
+  <div class="note"><ul>
+    <li><b>Before the spec:</b> where do bank accounts and cards get created (web app, chat, or on first mention)?</li>
+    <li><b>Before the spec:</b> for a statement with many rows, confirm each one or in a batch?</li>
+    <li><b>Confirm:</b> ignoring a nudge counts as "no data", not as a recorded zero.</li>
+    <li><b>Can wait:</b> exact accent color and font; where quarterly and yearly insights live.</li>
+  </ul></div>
+</main>
+<script>
+  var panels = document.querySelectorAll(".panel"), tabs = document.getElementById("tabs");
+  panels.forEach(function (p, i) {
+    var b = document.createElement("button");
+    b.textContent = p.getAttribute("data-t"); b.setAttribute("role", "tab");
+    b.onclick = function () { show(i); };
+    tabs.appendChild(b);
+  });
+  function show(i) {
+    panels.forEach(function (p, j) { p.classList.toggle("on", i === j); });
+    tabs.querySelectorAll("button").forEach(function (b, j) { b.setAttribute("aria-selected", i === j ? "true" : "false"); });
+  }
+  show(0);
+</script>
+</body>
+</html>
