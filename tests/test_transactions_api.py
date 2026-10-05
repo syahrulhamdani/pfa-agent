@@ -5,10 +5,7 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-from pfa.core.config import Settings, get_settings
-from pfa.main import app
 from pfa.models import Transaction, TransactionStatus
 from pfa.repository.finance import (
     BankRepository,
@@ -77,21 +74,8 @@ async def test_the_day_follows_the_users_timezone(session_factory, seeded):
     assert rows == []
 
 
-async def test_endpoint_returns_json(session_factory, seeded):
-    app.state.session_factory = session_factory
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        telegram_bot_token="t",
-        telegram_chat_id=1,
-        gemini_api_key="k",
-        timezone="UTC",
-    )
-    try:
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://t"
-        ) as client:
-            response = await client.get("/transactions/today")
-    finally:
-        app.dependency_overrides.clear()
+async def test_endpoint_returns_json(authed_client, seeded):
+    response = await authed_client.get("/transactions/today")
     assert response.status_code == 200
     body = response.json()
     assert {row["merchant"] for row in body} <= {"Newest today", "Older today"}

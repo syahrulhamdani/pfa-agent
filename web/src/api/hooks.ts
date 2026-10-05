@@ -4,6 +4,25 @@ import { isPreset, toApiQuery } from '../filters'
 import type { Filters } from '../filters'
 import type { Bank, Card, Transaction } from './types'
 
+export function useSession() {
+  return useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: () => api<{ authenticated: boolean }>('/auth/me'),
+    retry: false,
+    staleTime: 60_000,
+  })
+}
+
+export function useLogout() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<unknown>('/auth/logout', { method: 'POST' }),
+    onSuccess: () => {
+      client.clear()
+    },
+  })
+}
+
 // New confirmations should appear without a reload.
 const LIVE_REFETCH_MS = 5000
 

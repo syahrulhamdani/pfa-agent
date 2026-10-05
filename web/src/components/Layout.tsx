@@ -1,4 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { NavLink, Outlet } from 'react-router-dom'
+import { useLogout } from '../api/hooks'
 
 const LINKS = [
   { to: '/transactions', label: 'Transactions' },
@@ -9,6 +11,16 @@ const LINKS = [
 ]
 
 export function Layout() {
+  const logout = useLogout()
+  const queryClient = useQueryClient()
+
+  function signOut() {
+    logout.mutate(undefined, {
+      // Re-check the session so the gate shows the sign-in screen at once.
+      onSettled: () => void queryClient.invalidateQueries({ queryKey: ['auth'] }),
+    })
+  }
+
   return (
     <>
       <header className="header">
@@ -23,6 +35,9 @@ export function Layout() {
               </NavLink>
             ))}
           </nav>
+          <button type="button" className="link-button" onClick={signOut}>
+            Sign out
+          </button>
         </div>
       </header>
       <main className="page">

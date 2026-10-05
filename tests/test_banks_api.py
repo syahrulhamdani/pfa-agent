@@ -1,18 +1,11 @@
 """Boundary: banks and cards can be created and listed through the API."""
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-
-from pfa.main import app
 
 
 @pytest.fixture
-async def client(session_factory):
-    app.state.session_factory = session_factory
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://t"
-    ) as http:
-        yield http
+def client(authed_client):
+    return authed_client
 
 
 async def test_create_and_list_bank_with_card(client):

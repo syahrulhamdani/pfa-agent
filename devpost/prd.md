@@ -15,7 +15,7 @@ Source: `scope.md > The Unique Kernel`, `scope.md > The Core Loop`, `scope.md > 
 3. While it processes, the user can keep chatting: upload more, or casually ask for recommendations and insights.
 4. When processing finishes, pfa replies **to that specific upload message** with the extracted data and a request to confirm.
 5. The user confirms (or corrects). Only confirmed data is saved and aggregated.
-6. pfa's reply includes a link to the web app. The link opens the **Today's transactions** screen, from which the user navigates everywhere else: aggregated data, budgets, goals, insights.
+6. pfa's reply includes a single-use sign-in link to the web app, valid for a few minutes. Opening it signs the user in for a week and lands on the **Today's transactions** screen, from which the user navigates everywhere else: aggregated data, budgets, goals, insights. Sending `/login` to pfa at any time returns a fresh link. Without a session, the web app only shows how to get one.
 7. In the web app the user explores aggregates and manages budgets and goals; changes show up in real time.
 8. Between uploads, pfa nudges the user in daily time slots to upload receipts. The user uploads, or ignores the nudge.
 9. At the start of each week, pfa sends a short Monday summary on Telegram with a link to the dashboard; the full summary is also in the web app.

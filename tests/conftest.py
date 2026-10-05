@@ -3,17 +3,23 @@
 import os
 import subprocess
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import psycopg
 import pytest
+from httpx import ASGITransport, AsyncClient
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from pfa.core.config import Settings
+from pfa.core.config import Settings, get_settings
+from pfa.main import app
+from pfa.services.auth import SESSION_COOKIE, TokenType, create_token
 from pfa.services.categories import seed_categories
+
+TEST_AUTH_SECRET = "test-secret-" + "x" * 40
 
 
 @pytest.fixture
@@ -23,6 +29,7 @@ def settings() -> Settings:
         telegram_bot_token="123:abc",
         telegram_chat_id=42,
         gemini_api_key="fake-key",
+        auth_secret=TEST_AUTH_SECRET,
     )
 
 
@@ -77,7 +84,8 @@ async def session_factory(test_database_url):
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "TRUNCATE transactions, uploads, cards, banks, categories "
+                "TRUNCATE transactions, uploads, cards, banks, categories, "
+                "login_tokens "
                 "RESTART IDENTITY CASCADE"
             )
         )
@@ -85,3 +93,39 @@ async def session_factory(test_database_url):
     await seed_categories(factory, TEST_CATEGORIES)
     yield factory
     await engine.dispose()
+
+
+# --- API clients: anonymous, and signed in with a valid session cookie. ---
+
+
+@pytest.fixture
+def api_settings() -> Settings:
+    """Settings for API tests: UTC timezone and the test signing secret."""
+    return Settings(
+        telegram_bot_token="t",
+        telegram_chat_id=1,
+        gemini_api_key="k",
+        auth_secret=TEST_AUTH_SECRET,
+        timezone="UTC",
+    )
+
+
+@pytest.fixture
+async def anon_client(session_factory, api_settings):
+    """An API client with no session cookie."""
+    app.state.session_factory = session_factory
+    app.dependency_overrides[get_settings] = lambda: api_settings
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://t") as client:
+        yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def authed_client(anon_client, api_settings):
+    """An API client signed in with a valid session cookie."""
+    token, _, _ = create_token(
+        api_settings.auth_secret, TokenType.SESSION, timedelta(days=1)
+    )
+    anon_client.cookies.set(SESSION_COOKIE, token)
+    return anon_client

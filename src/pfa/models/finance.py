@@ -95,3 +95,16 @@ class Transaction(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LoginToken(Base):
+    """A sign-in link that has been issued. Each one can be used once."""
+
+    __tablename__ = "login_tokens"
+
+    jti: Mapped[str] = mapped_column(String(64), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

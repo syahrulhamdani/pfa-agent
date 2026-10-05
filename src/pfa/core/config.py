@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     gemini_extract_model: str = "gemini-pro-latest"
     upload_dir: str = "data/uploads"
     categories_file: str = "config/categories.json"
+    # Web sign-in. AUTH_SECRET signs every token, so keep it long, random and private.
+    auth_secret: str = Field(min_length=32)
+    auth_link_ttl_minutes: int = Field(10, gt=0)
+    auth_session_days: int = Field(7, gt=0)
+    auth_cookie_secure: bool = False  # set true when the web app is served over HTTPS
     web_base_url: str = "http://localhost:5173"
     timezone: str = "Asia/Jakarta"
     log_level: str = "INFO"

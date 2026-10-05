@@ -4,10 +4,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-from pfa.core.config import Settings, get_settings
-from pfa.main import app
 from pfa.models import Transaction
 from pfa.repository.finance import CategoryRepository
 
@@ -17,7 +14,7 @@ def at(day: int, hour: int, month: int = 10) -> datetime:
 
 
 @pytest.fixture
-async def client(session_factory):
+async def client(session_factory, authed_client):
     """API client over a database holding four transactions (UTC timezone).
 
     A Indomaret  Groceries 45000  receipt Oct 4   confirmed Oct 5 10:00
@@ -50,13 +47,7 @@ async def client(session_factory):
             ]
         )
         await session.commit()
-    app.state.session_factory = session_factory
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        telegram_bot_token="t", telegram_chat_id=1, gemini_api_key="k", timezone="UTC"
-    )
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
-        yield c
-    app.dependency_overrides.clear()
+    yield authed_client
 
 
 async def merchants(client, **params) -> list[str]:

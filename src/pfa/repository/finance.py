@@ -1,16 +1,17 @@
 """Async repositories for banks, cards, categories, uploads and transactions."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pfa.models import (
     Bank,
     Card,
     Category,
+    LoginToken,
     Transaction,
     TransactionStatus,
     Upload,
@@ -261,3 +262,40 @@ class TransactionRepository:
     ) -> list[tuple[Transaction, str | None, str | None]]:
         """Returns transactions confirmed in [start, end), newest first."""
         return await self.search_confirmed(confirmed_from=start, confirmed_to=end)
+
+
+class LoginTokenRepository:
+    """Tracks issued sign-in links so each works only once."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        """Binds the repository to a session."""
+        self._session = session
+
+    async def add(self, jti: str, expires_at: datetime, now: datetime) -> None:
+        """Records a newly issued link and drops long-expired ones."""
+        await self._session.execute(
+            delete(LoginToken).where(LoginToken.expires_at < now - timedelta(days=1))
+        )
+        self._session.add(LoginToken(jti=jti, expires_at=expires_at))
+        await self._session.commit()
+
+    async def consume(self, jti: str, now: datetime) -> bool:
+        """Marks a link used if it is known, unused and unexpired.
+
+        The check and the update are one statement, so two simultaneous requests
+        with the same link cannot both succeed.
+
+        Returns:
+            True if this call used the link; False otherwise.
+        """
+        result = await self._session.execute(
+            update(LoginToken)
+            .where(
+                LoginToken.jti == jti,
+                LoginToken.used_at.is_(None),
+                LoginToken.expires_at > now,
+            )
+            .values(used_at=now)
+        )
+        await self._session.commit()
+        return result.rowcount == 1

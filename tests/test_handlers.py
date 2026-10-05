@@ -150,3 +150,32 @@ async def test_error_handler_survives_non_update_objects():
 
     context = SimpleNamespace(error=RuntimeError("boom"), bot_data={"chat_id": 42})
     await handle_error(None, context)  # must not raise
+
+
+async def test_login_command_sends_a_link_without_preview():
+    from pfa.bot.handlers import handle_login
+
+    update = _update(42, "/login")
+    issue = AsyncMock(return_value="http://web/auth?token=T")
+    context = SimpleNamespace(
+        bot_data={"chat_id": 42, "issue_link": issue, "link_ttl_minutes": 10}
+    )
+    await handle_login(update, context)
+    reply = update.effective_message.reply_text
+    reply.assert_awaited_once()
+    assert "http://web/auth?token=T" in reply.await_args.args[0]
+    assert "10 minutes" in reply.await_args.args[0]
+    assert reply.await_args.kwargs["link_preview_options"].is_disabled
+
+
+async def test_login_command_ignores_other_chats():
+    from pfa.bot.handlers import handle_login
+
+    update = _update(7, "/login")
+    issue = AsyncMock()
+    context = SimpleNamespace(
+        bot_data={"chat_id": 42, "issue_link": issue, "link_ttl_minutes": 10}
+    )
+    await handle_login(update, context)
+    issue.assert_not_called()
+    update.effective_message.reply_text.assert_not_called()

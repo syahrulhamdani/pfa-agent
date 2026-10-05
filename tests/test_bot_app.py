@@ -83,3 +83,15 @@ def test_text_is_routed_to_text_handler_only(application):
 
 def test_callback_query_handler_is_registered(application):
     assert any(isinstance(h, CallbackQueryHandler) for h in _flat(application))
+
+
+def test_login_command_is_registered(application):
+    from telegram.ext import CommandHandler
+
+    commands = {
+        command
+        for h in _flat(application)
+        if isinstance(h, CommandHandler) and h.callback is handlers.handle_login
+        for command in h.commands
+    }
+    assert commands == {"login"}

@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
+    CommandHandler,
     MessageHandler,
     TypeHandler,
     filters,
@@ -13,6 +14,7 @@ from telegram.ext import (
 from pfa.bot.handlers import (
     handle_callback,
     handle_error,
+    handle_login,
     handle_text,
     handle_upload,
     log_update,
@@ -36,6 +38,7 @@ def build_application(
     application.add_error_handler(handle_error)
     # Group -1 runs before the real handlers and never consumes the update.
     application.add_handler(TypeHandler(Update, log_update), group=-1)
+    application.add_handler(CommandHandler("login", handle_login))
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(
         MessageHandler(filters.PHOTO | filters.Document.ALL, handle_upload)

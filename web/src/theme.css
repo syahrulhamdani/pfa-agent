@@ -302,6 +302,44 @@ button:disabled {
   margin: 0;
 }
 
+/* Sign-in screen and header action */
+.centered {
+  display: flex;
+  justify-content: center;
+  padding-top: 96px;
+}
+
+.narrow {
+  max-width: 460px;
+}
+
+.brand-lockup {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+
+.brand-lockup span {
+  color: var(--color-accent);
+}
+
+.link-button {
+  margin-left: auto;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.link-button:hover:not(:disabled) {
+  filter: none;
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
 /* States */
 .state {
   padding: 32px 0;

@@ -14,6 +14,8 @@ from pfa.graphs.extraction import NOT_A_CORRECTION
 from pfa.models import Upload, UploadStatus
 from pfa.repository.finance import UploadRepository
 
+LINK = "http://web/auth?token=T&next=/transactions/today"
+
 PAYLOAD = {
     "upload_id": 1,
     "transaction": {"merchant": "Indomaret"},
@@ -38,7 +40,11 @@ def _coordinator(session_factory, settings, result):
     graph = SimpleNamespace(ainvoke=AsyncMock(return_value=result))
     bot = SimpleNamespace(send_message=AsyncMock())
     coordinator = UploadCoordinator(
-        bot=bot, graph=graph, session_factory=session_factory, settings=settings
+        bot=bot,
+        graph=graph,
+        session_factory=session_factory,
+        settings=settings,
+        issue_link=AsyncMock(return_value=LINK),
     )
     return coordinator, bot, graph
 
@@ -91,9 +97,11 @@ async def test_finished_graph_sends_saved_link(session_factory, settings):
     await _upload(session_factory)
     coordinator, bot, _ = _coordinator(session_factory, settings, {})
     await coordinator.resume(1, {"action": "confirm"})
-    text = bot.send_message.await_args.kwargs["text"]
-    assert text.endswith("/transactions/today")
-    assert "Saved" in text
+    kwargs = bot.send_message.await_args.kwargs
+    assert LINK in kwargs["text"]
+    assert "Saved" in kwargs["text"]
+    assert str(settings.auth_link_ttl_minutes) in kwargs["text"]
+    assert kwargs["link_preview_options"].is_disabled  # a bot must not open the link
 
 
 # --- receive(): the getFile download, the database record, the background start ---
@@ -121,7 +129,11 @@ def _receive_setup(
         send_message=AsyncMock(),
     )
     coordinator = UploadCoordinator(
-        bot=bot, graph=graph, session_factory=session_factory, settings=settings
+        bot=bot,
+        graph=graph,
+        session_factory=session_factory,
+        settings=settings,
+        issue_link=AsyncMock(return_value=LINK),
     )
     message = SimpleNamespace(message_id=55, reply_text=AsyncMock())
     return coordinator, bot, graph, message, settings

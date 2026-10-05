@@ -10,7 +10,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from telegram import Bot, Message, ReplyParameters
+from telegram import Bot, LinkPreviewOptions, Message, ReplyParameters
 
 from pfa.bot.formatting import (
     FAILED_TEXT,
@@ -23,6 +23,7 @@ from pfa.core.config import Settings
 from pfa.graphs.extraction import NOT_A_CORRECTION, pending_interrupt, thread_config
 from pfa.models import UploadStatus
 from pfa.repository.finance import UploadRepository
+from pfa.services.auth import LinkIssuer
 
 
 class UploadCoordinator:
@@ -35,12 +36,14 @@ class UploadCoordinator:
         graph: CompiledStateGraph,
         session_factory: async_sessionmaker[AsyncSession],
         settings: Settings,
+        issue_link: LinkIssuer,
     ) -> None:
         """Wires the coordinator to Telegram, the graph and the database."""
         self._bot = bot
         self._graph = graph
         self._session_factory = session_factory
         self._settings = settings
+        self._issue_link = issue_link
         self._tasks: set[asyncio.Task] = set()
         self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
@@ -134,16 +137,22 @@ class UploadCoordinator:
                 review_keyboard(payload),
             )
         else:
+            link = await self._issue_link()
             await self._send(
-                saved_text(self._settings.web_base_url), upload.telegram_message_id
+                saved_text(link, self._settings.auth_link_ttl_minutes),
+                upload.telegram_message_id,
+                no_preview=True,  # a preview bot fetching the link must not use it up
             )
         return True
 
-    async def _send(self, text: str, reply_to: int, markup: Any = None) -> None:
+    async def _send(
+        self, text: str, reply_to: int, markup: Any = None, no_preview: bool = False
+    ) -> None:
         await self._bot.send_message(
             chat_id=self._settings.telegram_chat_id,
             text=text,
             reply_markup=markup,
+            link_preview_options=LinkPreviewOptions(is_disabled=no_preview),
             reply_parameters=ReplyParameters(
                 message_id=reply_to, allow_sending_without_reply=True
             ),

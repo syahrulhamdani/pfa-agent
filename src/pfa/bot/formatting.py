@@ -78,6 +78,14 @@ def review_keyboard(payload: dict[str, Any]) -> InlineKeyboardMarkup | None:
     return None
 
 
-def saved_text(web_base_url: str) -> str:
-    """Formats the reply sent after a transaction is saved."""
-    return f"Saved. See today's transactions: {web_base_url}/transactions/today"
+def saved_text(link: str, ttl_minutes: int) -> str:
+    """Formats the reply sent after a transaction is saved, with a sign-in link."""
+    return (
+        f"Saved. Open your transactions (sign-in link, valid for {ttl_minutes} "
+        f"minutes, works once): {link}"
+    )
+
+
+def login_text(link: str, ttl_minutes: int) -> str:
+    """Formats the reply to /login."""
+    return f"Your sign-in link (valid for {ttl_minutes} minutes, works once): {link}"

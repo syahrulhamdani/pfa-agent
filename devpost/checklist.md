@@ -39,7 +39,17 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Confirm a receipt in Telegram, click the link, and check that it shows up within a few seconds. Say what you would change about the look.
   Commit: `Add web app with Today's transactions and bank/card settings`
 
-- [ ] **4. pfa nudges you at the times you usually spend (the unique kernel)**
+- [x] **4. You sign in to the web app with a Telegram link**
+  Becomes usable: The API and every web page require a session. pfa's "Saved" reply and a new `/login` command send a short-lived, single-use link; opening it sets a 7-day session cookie and lands on Transactions. Without a session the web app explains how to get a link.
+  Why now: You required auth before more financial data and pages (dashboard, budgets, goals) are built on an open API, and every later slice depends on the protected routes.
+  PRD ref: `prd.md > The Core Journey` (step 6)
+  Spec ref: `spec.md > Components` (REST API, Telegram bot, Web app), `spec.md > What Was Simplified and Why` (no login)
+  Build: Add PyJWT and an `AUTH_SECRET` setting; a `login_tokens` table so each link works once; a login JWT (10 minutes, single use) and a session JWT (7 days) in an HttpOnly cookie; `POST /auth/exchange`, `GET /auth/me` and `POST /auth/logout`; a session check on every route except `/health` and `/auth`; Telegram link generation for the "Saved" reply and `/login`, with link previews off; a web `/auth` page that exchanges the token, a sign-in-required screen and a sign-out button.
+  Verify (mechanical): `uv run pytest` covers token creation, expiry, tampering, wrong token type, single use, cookie flags, and 401 without a session on every protected route; `npm run build` and lint pass; a live run through the Vite proxy confirms the exchange sets the cookie, protected calls succeed with it and fail without it, and a reused link is rejected.
+  Learner check: Send `/login` in Telegram, open the link, confirm Transactions loads, then open the same link again and confirm it is rejected; sign out and confirm the pages ask you to get a new link.
+  Commit: `Add Telegram magic-link sign-in with JWT sessions`
+
+- [ ] **5. pfa nudges you at the times you usually spend (the unique kernel)**
   Becomes usable: pfa sends upload nudges at six default daily slots, learns slots from your past confirmed transactions once there are enough, and `/demo_nudge` fires one on demand. Ignored nudges get no follow-up.
   Why now: The nudge is one half of the unique kernel and only needs confirmed transactions, so it goes in right after the data exists instead of last.
   PRD ref: `prd.md > Adaptive nudges`, `prd.md > States and Boundaries` (ignored nudge, demo triggering)
@@ -49,7 +59,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Send `/demo_nudge` and read the message. Say whether the wording fits you, and whether the six default times match your day.
   Commit: `Add adaptive nudge slots and scheduler`
 
-- [ ] **5. You can upload a statement (PDF, CSV or Excel) and confirm it in one go**
+- [ ] **6. You can upload a statement (PDF, CSV or Excel) and confirm it in one go**
   Becomes usable: Upload a statement file, get a summary (count, highest, lowest, total), and confirm every transaction with one tap.
   Why now: Same graph as receipts with a new parse branch, so the riskiest wiring is already proven. It adds real volume for analytics before we build them.
   PRD ref: `prd.md > Upload and extraction`, `prd.md > Confirmation and data fields`
@@ -59,7 +69,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Upload one real statement you're comfortable using, check the summary against your statement, confirm, and look at the Today page.
   Commit: `Add statement upload and batch confirmation`
 
-- [ ] **6. You can explore aggregated spending on the dashboard**
+- [ ] **7. You can explore aggregated spending on the dashboard**
   Becomes usable: A Dashboard page with day, week, month, quarter and year views, category breakdown and totals, updating as confirmed data arrives.
   Why now: Analytics is the source of truth for the web app and for every number the LLM will quote, so it must exist before budgets and recommendations.
   PRD ref: `prd.md > Web app: transactions and analytics`
@@ -69,7 +79,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Open the Dashboard, switch periods, and check the numbers against what you've confirmed.
   Commit: `Add analytics service and dashboard`
 
-- [ ] **7. You can set versioned monthly budgets and savings goals**
+- [ ] **8. You can set versioned monthly budgets and savings goals**
   Becomes usable: Budgets page (per category, per month, editable, older versions viewable) and Goals page (name, target amount, target date, manually edited saved amount, progress), with budget remaining shown on the dashboard.
   Why now: Recommendations compare spending against budgets and goals, so these must exist before the second half of the kernel.
   PRD ref: `prd.md > Budgets`, `prd.md > Goals`
@@ -79,7 +89,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Create a budget, edit it, and view the older version; create a goal and update its saved amount.
   Commit: `Add versioned budgets and goals`
 
-- [ ] **8. pfa speaks up on its own: Monday summary and recommendations (the unique kernel)**
+- [ ] **9. pfa speaks up on its own: Monday summary and recommendations (the unique kernel)**
   Becomes usable: `/demo_summary` (and the Monday job) sends a short summary with a dashboard link; the dashboard shows last week's stats, category breakdown and recommendations against remaining budget; asking pfa in chat for insights answers from your confirmed data.
   Why now: Last by dependency, since it uses analytics, budgets and goals, but it completes the kernel and the demo's closing beat.
   PRD ref: `prd.md > Weekly summary and recommendations`, `prd.md > States and Boundaries` (demo triggering)
@@ -91,7 +101,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
 
 ## Hands-on Checkpoints
 
-- [ ] Early usable behavior explored — after slice 3 (receipt to Today's transactions), so look-and-feel and extraction feedback can shape slices 4-8
+- [x] Early usable behavior explored — after slice 3 (receipt to Today's transactions); the learner approved the look and asked for filters and auth, which became revisions
 - [ ] Final kick-the-tires exploration and feedback completed
 
 ## Final Review
@@ -122,3 +132,4 @@ Activity mode:
 - The accent colour and font could not be read from the reference page, so the theme uses Deloitte's published brand green and an Open Sans-first stack, held in CSS variables for the learner to retune at the checkpoint.
 - The web app calls the API through a Vite `/api` proxy, so no CORS setup is needed in FastAPI.
 - The landing page gained filters (receipt or confirmation date, range or month, amount range, categories) and became "Transactions" with "confirmed today" as the default — the learner asked for it at the early checkpoint. Auth is still undecided and would be added as its own step.
+- Added slice 4, Telegram magic-link sign-in with JWT sessions, and renumbered the later slices — the learner requires authentication, which reverses the spec's "No login; one user identified by a configured Telegram chat id" simplification. Session length defaults to 7 days.

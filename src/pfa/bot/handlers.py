@@ -2,10 +2,10 @@
 
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
-from telegram import Update
+from telegram import LinkPreviewOptions, Update
 from telegram.ext import ContextTypes
 
-from pfa.bot.formatting import FAILED_TEXT, UNSUPPORTED_TEXT
+from pfa.bot.formatting import FAILED_TEXT, UNSUPPORTED_TEXT, login_text
 from pfa.bot.uploads import UploadCoordinator
 from pfa.core.exceptions import LLMError
 from pfa.graphs.chat import BUSY_REPLY, chat_reply
@@ -53,6 +53,21 @@ async def handle_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> No
         message = update.effective_message
         if message is not None:
             await message.reply_text(FAILED_TEXT)
+
+
+async def handle_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Replies to /login with a fresh single-use sign-in link for the web app."""
+    if not is_authorized(update, context.bot_data["chat_id"]):
+        logger.warning("Ignoring /login from unauthorized chat")
+        return
+    message = update.effective_message
+    if message is None:
+        return
+    link = await context.bot_data["issue_link"]()
+    await message.reply_text(
+        login_text(link, context.bot_data["link_ttl_minutes"]),
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

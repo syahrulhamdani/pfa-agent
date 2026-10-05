@@ -55,7 +55,7 @@ Unverified, to check first in the build: the exact Gemini model IDs for Flash Li
 Everything runs locally; this is enough for the required demo video and the public GitHub repo. No deployment.
 
 - Requirements: Python via pyenv, `uv`, Node, Docker, a Telegram bot token (from BotFather) and a Gemini API key.
-- Config: `.env.example` is the env file (per your convention) with `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`, `GEMINI_CHAT_MODEL`, `GEMINI_EXTRACT_MODEL`, `WEB_BASE_URL`, `TIMEZONE`, `LOG_LEVEL`, `LOG_USE_BASIC_FORMAT`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `UPLOAD_DIR`, `CATEGORIES_FILE`. Real secrets must not be committed to the public repo.
+- Config: `.env.example` is the env file (per your convention) with `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`, `GEMINI_CHAT_MODEL`, `GEMINI_EXTRACT_MODEL`, `WEB_BASE_URL`, `TIMEZONE`, `LOG_LEVEL`, `LOG_USE_BASIC_FORMAT`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `UPLOAD_DIR`, `CATEGORIES_FILE`, `AUTH_SECRET`, `AUTH_LINK_TTL_MINUTES`, `AUTH_SESSION_DAYS`, `AUTH_COOKIE_SECURE`. Real secrets must not be committed to the public repo.
 - Start:
   1. `docker compose up -d db`
   2. `uv run --env-file .env.example alembic upgrade head`
@@ -98,8 +98,12 @@ APScheduler async jobs: nudges at the stored slot times and the weekly summary o
 PRD ref: `prd.md > Adaptive nudges`.
 
 ### REST API
-Async FastAPI routers for transactions (including `GET /transactions` with receipt/confirmation date, month, amount and category filters), banks and cards, budgets, goals, analytics and summaries. No auth (single user).
+Async FastAPI routers for transactions (including `GET /transactions` with receipt/confirmation date, month, amount and category filters), banks and cards, budgets, goals, analytics and summaries. Every route except `/health` and `/auth/*` requires a session cookie; see Components > Sign-in.
 PRD ref: `prd.md > Screens and Layout`.
+
+### Sign-in
+A Telegram magic link with JWTs (PyJWT, HS256, signed with `AUTH_SECRET`). `/login` and every "Saved" reply send a login JWT (10 minutes, single use: its `jti` is stored in `login_tokens` and consumed atomically). The web `/auth` page exchanges it with `POST /auth/exchange` (a POST, so link-preview bots cannot spend it) for a session JWT (7 days) in an HttpOnly, SameSite=Lax cookie. Every other route checks that cookie. Telegram link previews are disabled on these messages and the token is removed from the address bar on arrival.
+PRD ref: `prd.md > The Core Journey` (step 6)
 
 ### Web app
 React pages: Today's transactions (landing), Dashboard, Budgets, Goals, and a banks/cards settings page. TanStack Query refetches every few seconds.
@@ -118,6 +122,7 @@ All tables live in Postgres and persist across restarts. LangGraph's checkpointe
 - **goals**(id, name, target_amount, target_date, saved_amount) — progress is `saved_amount / target_amount`, with `saved_amount` edited in the web app (assumption, see Open Issues).
 - **nudge_slots**(id, time_of_day, source: default | learned)
 - **weekly_summaries**(id, week_start, stats_json, recommendations_text, created_at)
+- **login_tokens**(jti, expires_at, used_at, created_at) — one row per issued sign-in link.
 
 Nudge learning uses the upload/confirmation time, not the receipt date, because receipts often have no time of day.
 
@@ -182,7 +187,7 @@ pfa/
 
 ## What Was Simplified and Why
 
-- **No login; one user identified by a configured Telegram chat id** instead of accounts — the PoC is for one person; auth would not prove the kernel.
+- **One user, identified by a configured Telegram chat id**, instead of accounts — the PoC is for one person. The learner required sign-in, so the web app is protected by a Telegram magic link instead of passwords (see Components > Sign-in).
 - **Polling refetch** instead of websockets — looks live, far simpler.
 - **Bot polling** instead of webhooks — no public URL needed.
 - **In-process scheduler** instead of a job queue — fewer moving parts.
