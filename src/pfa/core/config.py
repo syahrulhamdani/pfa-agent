@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(min_length=1)
     gemini_chat_model: str = "gemini-flash-lite-latest"
     gemini_extract_model: str = "gemini-pro-latest"
+    upload_dir: str = "data/uploads"
+    categories_file: str = "config/categories.json"
     web_base_url: str = "http://localhost:5173"
     timezone: str = "Asia/Jakarta"
     log_level: str = "INFO"

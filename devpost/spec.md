@@ -55,7 +55,7 @@ Unverified, to check first in the build: the exact Gemini model IDs for Flash Li
 Everything runs locally; this is enough for the required demo video and the public GitHub repo. No deployment.
 
 - Requirements: Python via pyenv, `uv`, Node, Docker, a Telegram bot token (from BotFather) and a Gemini API key.
-- Config: `.env.example` is the env file (per your convention) with `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`, `GEMINI_CHAT_MODEL`, `GEMINI_EXTRACT_MODEL`, `WEB_BASE_URL`, `TIMEZONE`, `LOG_LEVEL`, `LOG_USE_BASIC_FORMAT`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`. Real secrets must not be committed to the public repo.
+- Config: `.env.example` is the env file (per your convention) with `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`, `GEMINI_CHAT_MODEL`, `GEMINI_EXTRACT_MODEL`, `WEB_BASE_URL`, `TIMEZONE`, `LOG_LEVEL`, `LOG_USE_BASIC_FORMAT`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `UPLOAD_DIR`, `CATEGORIES_FILE`. Real secrets must not be committed to the public repo.
 - Start:
   1. `docker compose up -d db`
   2. `uv run --env-file .env.example alembic upgrade head`
@@ -111,7 +111,7 @@ All tables live in Postgres and persist across restarts. LangGraph's checkpointe
 
 - **banks**(id, name)
 - **cards**(id, bank_id, name, last4)
-- **categories**(id, name) — seeded list.
+- **categories**(id, name) — seeded at startup from `config/categories.json` (path in `CATEGORIES_FILE`); startup only adds missing names and never deletes.
 - **uploads**(id, telegram_message_id, kind, filename, status: processing | needs_input | awaiting_confirmation | done | failed, created_at)
 - **transactions**(id, upload_id, card_id, merchant, amount, occurred_on, category_id, description, status: pending | confirmed, created_at, confirmed_at) — only `confirmed` rows count in analytics.
 - **budget_versions**(id, category_id, month, amount, version, created_at) — the current budget is the highest version for a category and month; older versions remain viewable.

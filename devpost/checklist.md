@@ -19,7 +19,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Put your bot token, chat id and Gemini key in your local env, start the app, message the bot "hi, what can you do?" and tell me whether the reply feels human and professional.
   Commit: `Add scaffold, Telegram polling and Flash Lite chat`
 
-- [ ] **2. You send a receipt and confirm it into the database**
+- [x] **2. You send a receipt and confirm it into the database**
   Becomes usable: Upload a receipt photo in Telegram, get an immediate "processing" reply, keep chatting, then receive a reply threaded to your upload with merchant, amount, date, category, card and description. Tap Confirm and the transaction is saved.
   Why now: This is the core of the loop and the biggest technical risk (Gemini Pro structured extraction, LangGraph interrupt with the Postgres checkpointer). Nothing in analytics, nudges or the web app exists without confirmed data.
   PRD ref: `prd.md > Upload and extraction`, `prd.md > Confirmation and data fields`, `prd.md > States and Boundaries` (processing, blurry, missing card, unconfirmed)
@@ -114,3 +114,7 @@ Activity mode:
 
 - Added LangSmith observability (env-driven tracing, off by default, named `chat` runs) — the learner asked for it after slice 1; the spec had listed LangSmith as not used. Later graphs should set a `run_name` and tags the same way.
 - Chat history moved from in-memory to the LangGraph Postgres checkpointer, with the last 20 messages sent to Gemini — the learner saw the bot forget context across restarts, and slice 2's confirmation pause needs the same checkpointer anyway. The compose database now maps to host port 5433 because a local Postgres on the learner's Mac already owns 5432.
+- Seeded categories come from `config/categories.json` and are added at startup, instead of being hard-coded in the first migration — the learner asked how to configure them; names are only ever added so existing transactions keep their category.
+- Extraction and correction parsing use LangChain's built-in `with_structured_output` — the learner chose this over an agent-style `response_format`.
+- The Telegram handlers are registered in `bot/app.py` and covered by `tests/test_bot_app.py` — a first edit left upload, button and error handlers unregistered, so photos were silently ignored.
+- `missing_fields()` also treats an amount of zero or less and a date after today as missing — the learner's rule, fixed to handle empty values without crashing.

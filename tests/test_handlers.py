@@ -52,3 +52,101 @@ async def test_message_without_text_is_ignored():
     with patch("pfa.bot.handlers.chat_reply", new=AsyncMock()) as chat:
         await handle_text(update, _context())
     chat.assert_not_called()
+
+
+def _callback_update(data: str, chat_id: int = 42):
+    query = SimpleNamespace(
+        data=data, answer=AsyncMock(), edit_message_reply_markup=AsyncMock()
+    )
+    return SimpleNamespace(
+        callback_query=query,
+        effective_chat=SimpleNamespace(id=chat_id),
+        effective_message=None,
+    )
+
+
+def _upload_context(coordinator):
+    return SimpleNamespace(
+        bot_data={"chat_id": 42, "chat_graph": object(), "coordinator": coordinator},
+        bot=SimpleNamespace(send_message=AsyncMock()),
+    )
+
+
+async def test_confirm_button_resumes_with_confirm():
+    from pfa.bot.handlers import handle_callback
+
+    coordinator = SimpleNamespace(resume=AsyncMock())
+    await handle_callback(_callback_update("confirm:7"), _upload_context(coordinator))
+    coordinator.resume.assert_awaited_once_with(7, {"action": "confirm"})
+
+
+async def test_card_button_resumes_with_card_id():
+    from pfa.bot.handlers import handle_callback
+
+    coordinator = SimpleNamespace(resume=AsyncMock())
+    await handle_callback(_callback_update("card:7:3"), _upload_context(coordinator))
+    coordinator.resume.assert_awaited_once_with(7, {"action": "set_card", "card_id": 3})
+
+
+async def test_malformed_or_foreign_callbacks_are_ignored():
+    from pfa.bot.handlers import handle_callback
+
+    coordinator = SimpleNamespace(resume=AsyncMock())
+    for update in (
+        _callback_update("confirm:abc"),
+        _callback_update("card:1:x"),
+        _callback_update("bogus"),
+        _callback_update("confirm:7", chat_id=99),
+    ):
+        await handle_callback(update, _upload_context(coordinator))
+    coordinator.resume.assert_not_called()
+
+
+async def test_non_image_document_gets_unsupported_reply():
+    from pfa.bot.formatting import UNSUPPORTED_TEXT
+    from pfa.bot.handlers import handle_upload
+
+    message = SimpleNamespace(
+        photo=[],
+        document=SimpleNamespace(mime_type="application/pdf", file_id="f"),
+        reply_text=AsyncMock(),
+    )
+    update = SimpleNamespace(
+        effective_chat=SimpleNamespace(id=42), effective_message=message
+    )
+    coordinator = SimpleNamespace(receive=AsyncMock())
+    await handle_upload(update, _upload_context(coordinator))
+    message.reply_text.assert_awaited_once_with(UNSUPPORTED_TEXT)
+    coordinator.receive.assert_not_called()
+
+
+async def test_text_goes_to_open_receipt_first():
+    update = _update(42, "it was 50000")
+    coordinator = SimpleNamespace(resume_text=AsyncMock(return_value=True))
+    context = _upload_context(coordinator)
+    with patch("pfa.bot.handlers.chat_reply", new=AsyncMock()) as chat:
+        await handle_text(update, context)
+    chat.assert_not_called()
+    update.effective_message.reply_text.assert_not_called()
+
+
+async def test_error_handler_tells_authorized_user():
+    from telegram import Update
+
+    from pfa.bot.formatting import FAILED_TEXT
+    from pfa.bot.handlers import handle_error
+
+    update = Update(update_id=1)
+    message = SimpleNamespace(reply_text=AsyncMock())
+    update._effective_message = message
+    update._effective_chat = SimpleNamespace(id=42)
+    context = SimpleNamespace(error=RuntimeError("boom"), bot_data={"chat_id": 42})
+    await handle_error(update, context)
+    message.reply_text.assert_awaited_once_with(FAILED_TEXT)
+
+
+async def test_error_handler_survives_non_update_objects():
+    from pfa.bot.handlers import handle_error
+
+    context = SimpleNamespace(error=RuntimeError("boom"), bot_data={"chat_id": 42})
+    await handle_error(None, context)  # must not raise
