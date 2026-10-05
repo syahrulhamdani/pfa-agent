@@ -1,0 +1,51 @@
+[project]
+name = "pfa"
+version = "0.1.0"
+description = "pfa: a Telegram-first personal finance assistant"
+authors = [
+    { name = "syahrulhamdani", email = "23093968+syahrulhamdani@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.142.2",
+    "langchain-google-genai>=4.4.0",
+    "langgraph>=1.2.12",
+    "loguru>=0.7.3",
+    "pydantic-settings>=2.15.0",
+    "python-telegram-bot>=22.8",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.18,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "black>=26.10.0",
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.10",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "D", "UP", "B"]
+ignore = ["D100", "D104", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.black]
+line-length = 88
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
