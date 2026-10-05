@@ -16,6 +16,7 @@ from pfa.models import (
     UploadStatus,
 )
 from pfa.schemas.transactions import CardOption
+from pfa.services.cards import card_label
 
 
 class CategoryRepository:
@@ -94,8 +95,7 @@ class CardRepository:
         return [
             CardOption(
                 id=card.id,
-                label=f"{bank_name} {card.name}"
-                + (f" {card.last4}" if card.last4 else ""),
+                label=card_label(bank_name, card.name, card.last4),
                 last4=card.last4,
                 bank_name=bank_name,
             )
@@ -201,3 +201,31 @@ class TransactionRepository:
             .order_by(Transaction.id)
         )
         return list(result)
+
+    async def list_confirmed_between(
+        self, start: datetime, end: datetime
+    ) -> list[tuple[Transaction, str | None, str | None]]:
+        """Returns confirmed transactions confirmed in [start, end), newest first.
+
+        Each row is the transaction, its category name and its card label.
+        """
+        rows = await self._session.execute(
+            select(Transaction, Category.name, Bank.name, Card.name, Card.last4)
+            .outerjoin(Category, Category.id == Transaction.category_id)
+            .outerjoin(Card, Card.id == Transaction.card_id)
+            .outerjoin(Bank, Bank.id == Card.bank_id)
+            .where(
+                Transaction.status == TransactionStatus.CONFIRMED.value,
+                Transaction.confirmed_at >= start,
+                Transaction.confirmed_at < end,
+            )
+            .order_by(Transaction.confirmed_at.desc(), Transaction.id.desc())
+        )
+        return [
+            (
+                tx,
+                category,
+                card_label(bank, card, last4) if card is not None else None,
+            )
+            for tx, category, bank, card, last4 in rows
+        ]

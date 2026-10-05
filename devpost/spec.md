@@ -66,7 +66,7 @@ Everything runs locally; this is enough for the required demo video and the publ
 ## Look and Feel
 
 Carried from `prd.md > Look and Feel`. Implementation direction:
-- White page background, dark gray text, light gray dividers and card borders, a single accent color for primary actions and key figures. Confirm the exact accent color and font from the reference page at the start of the build; until then use CSS variables so one edit changes the theme.
+- White page background, dark gray text, light gray dividers and card borders, a single accent color for primary actions and key figures. The reference page's CSS could not be read during the build, so `web/src/theme.css` uses Deloitte's published brand green (`#86BC25`, with `#26890D` for text) and an Open Sans-first font stack, all as CSS variables so one edit changes the theme.
 - Clean sans-serif system font stack, hierarchy through size and weight, not color.
 - Modular cards in a grid; generous white space; restrained, data-forward charts (one accent plus grays).
 - Copy tone: concise and professional, no filler or emoji-heavy chatter. Telegram messages follow the same tone.

@@ -29,7 +29,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Create a bank and a card with the API (I'll give the one-line command), send one of your real receipts in Telegram, send a casual message while it processes, then confirm and tell me whether the extracted fields are right.
   Commit: `Add receipt extraction and confirmation flow`
 
-- [ ] **3. The Telegram link opens Today's transactions in the web app**
+- [x] **3. The Telegram link opens Today's transactions in the web app**
   Becomes usable: The confirmation reply ends with a link; it opens a Deloitte-style web page listing today's confirmed transactions, refreshed every few seconds, with navigation stubs and a banks/cards settings page where you add banks and cards.
   Why now: First time the receipt becomes visible analytics, which is the "oh that's cool" beat, and the first moment look-and-feel feedback can shape the rest of the web work.
   PRD ref: `prd.md > Web app: transactions and analytics`, `prd.md > Screens and Layout`, `prd.md > Look and Feel`
@@ -118,3 +118,6 @@ Activity mode:
 - Extraction and correction parsing use LangChain's built-in `with_structured_output` — the learner chose this over an agent-style `response_format`.
 - The Telegram handlers are registered in `bot/app.py` and covered by `tests/test_bot_app.py` — a first edit left upload, button and error handlers unregistered, so photos were silently ignored.
 - `missing_fields()` also treats an amount of zero or less and a date after today as missing — the learner's rule, fixed to handle empty values without crashing.
+- "Today's transactions" means transactions confirmed today in the configured timezone, not receipts dated today — the PRD wants the just-confirmed transaction visible, and a receipt is often dated earlier.
+- The accent colour and font could not be read from the reference page, so the theme uses Deloitte's published brand green and an Open Sans-first stack, held in CSS variables for the learner to retune at the checkpoint.
+- The web app calls the API through a Vite `/api` proxy, so no CORS setup is needed in FastAPI.

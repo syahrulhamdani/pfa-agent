@@ -34,3 +34,8 @@ def infer_card(hint: str | None, cards: list[CardOption]) -> int | None:
         or (c.bank_name and c.bank_name.lower() in lowered)
     ]
     return matches[0].id if len(matches) == 1 else None
+
+
+def card_label(bank_name: str, name: str, last4: str | None) -> str:
+    """Builds the readable card label shown in Telegram and the web app."""
+    return f"{bank_name} {name}" + (f" {last4}" if last4 else "")

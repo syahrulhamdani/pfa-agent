@@ -1,6 +1,6 @@
 """Pydantic models for transactions awaiting confirmation."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -26,3 +26,16 @@ class PendingTransaction(BaseModel):
     card_id: int | None = None
     card: str | None = None
     description: str | None = None
+
+
+class TransactionRead(BaseModel):
+    """A confirmed transaction as shown in the web app."""
+
+    id: int
+    merchant: str | None
+    amount: Decimal | None
+    occurred_on: date | None
+    category: str | None
+    card: str | None
+    description: str | None
+    confirmed_at: datetime | None

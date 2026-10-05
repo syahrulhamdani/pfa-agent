@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from loguru import logger
 
-from pfa.api import banks
+from pfa.api import banks, transactions
 from pfa.bot.app import build_application
 from pfa.bot.uploads import UploadCoordinator
 from pfa.core.config import get_settings
@@ -76,6 +76,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="pfa", lifespan=lifespan)
 app.include_router(banks.router)
+app.include_router(transactions.router)
 
 
 @app.get("/health")

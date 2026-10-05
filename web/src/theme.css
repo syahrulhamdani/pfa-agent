@@ -1,0 +1,289 @@
+/*
+ * Theme tokens. The look follows the Deloitte AI & Data page: white surface, dark
+ * gray text, light gray dividers, one green accent. Exact values could not be read
+ * from the page, so these are Deloitte's published brand green and neutrals; edit
+ * the variables here to retune the whole app.
+ */
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-text: #1f2124;
+  --color-muted: #6a6f75;
+  --color-border: #e2e4e6;
+  --color-subtle: #f4f5f6;
+  --color-accent: #86bc25;
+  --color-accent-strong: #26890d; /* readable on white, for links and figures */
+  --color-danger: #b3261e;
+
+  --font-sans: 'Open Sans', -apple-system, 'Segoe UI', system-ui, Roboto, sans-serif;
+  --radius: 4px;
+  --space: 16px;
+  --content-width: 960px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-bg);
+}
+
+body {
+  margin: 0;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+a {
+  color: var(--color-accent-strong);
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+/* Layout */
+.header {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.header-inner,
+.page {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 var(--space);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  min-height: 64px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.brand span {
+  color: var(--color-accent);
+}
+
+.nav {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.nav a {
+  padding: 20px 0 17px;
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+}
+
+.nav a:hover {
+  border-bottom-color: var(--color-border);
+}
+
+.nav a.active {
+  border-bottom-color: var(--color-accent);
+}
+
+.page {
+  padding-top: 32px;
+  padding-bottom: 64px;
+}
+
+.page-head {
+  margin-bottom: 24px;
+}
+
+/* Cards and figures */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space);
+  margin-bottom: 24px;
+}
+
+.stat-label {
+  color: var(--color-muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-value {
+  color: var(--color-accent-strong);
+  font-size: 28px;
+  font-weight: 700;
+}
+
+/* Table */
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+th,
+td {
+  padding: 12px 12px 12px 0;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding-right: 0;
+  padding-left: 12px;
+  white-space: nowrap;
+}
+
+/* Forms and buttons */
+.form-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+input,
+select {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-width: 160px;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+  font-weight: 700;
+  padding: 9px 18px;
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #0b1a00;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* States */
+.state {
+  padding: 32px 0;
+  color: var(--color-muted);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.stack > * + * {
+  margin-top: 24px;
+}
+
+.cards-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.cards-list li {
+  padding: 8px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 600px) {
+  .header-inner {
+    gap: 12px;
+  }
+
+  .nav {
+    gap: 16px;
+  }
+
+  .nav a {
+    padding: 8px 0 6px;
+  }
+}

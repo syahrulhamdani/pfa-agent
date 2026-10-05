@@ -1,0 +1,51 @@
+"""Reading confirmed transactions for the web app."""
+
+from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from pfa.repository.finance import TransactionRepository
+from pfa.schemas.transactions import TransactionRead
+
+
+def local_day_bounds(day: date, tz: ZoneInfo) -> tuple[datetime, datetime]:
+    """Returns the UTC start (inclusive) and end (exclusive) of a local day."""
+    start = datetime.combine(day, time.min, tzinfo=tz)
+    end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=tz)
+    return start.astimezone(UTC), end.astimezone(UTC)
+
+
+async def todays_transactions(
+    session: AsyncSession, timezone: str, now: datetime | None = None
+) -> list[TransactionRead]:
+    """Lists transactions confirmed today in the user's timezone.
+
+    "Today" means the day a transaction was confirmed, not the date printed on the
+    receipt, so a receipt from last week that was just uploaded still shows up.
+
+    Args:
+        session: Database session.
+        timezone: IANA timezone name, such as "Asia/Jakarta".
+        now: The current moment; injectable for tests.
+
+    Returns:
+        Confirmed transactions, newest first. Pending ones are never included.
+    """
+    tz = ZoneInfo(timezone)
+    local_today = (now or datetime.now(UTC)).astimezone(tz).date()
+    start, end = local_day_bounds(local_today, tz)
+    rows = await TransactionRepository(session).list_confirmed_between(start, end)
+    return [
+        TransactionRead(
+            id=tx.id,
+            merchant=tx.merchant,
+            amount=tx.amount,
+            occurred_on=tx.occurred_on,
+            category=category,
+            card=card,
+            description=tx.description,
+            confirmed_at=tx.confirmed_at,
+        )
+        for tx, category, card in rows
+    ]

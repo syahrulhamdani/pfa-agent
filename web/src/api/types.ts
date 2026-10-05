@@ -1,0 +1,23 @@
+export interface Transaction {
+  id: number
+  merchant: string | null
+  // Decimals are serialized as strings by the API.
+  amount: string | null
+  occurred_on: string | null
+  category: string | null
+  card: string | null
+  description: string | null
+  confirmed_at: string | null
+}
+
+export interface Bank {
+  id: number
+  name: string
+}
+
+export interface Card {
+  id: number
+  bank_id: number
+  name: string
+  last4: string | null
+}
