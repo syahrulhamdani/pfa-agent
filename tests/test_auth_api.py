@@ -327,3 +327,25 @@ async def test_the_sign_in_notice_offers_signout():
     from pfa.bot.formatting import signed_in_text
 
     assert "/signout" in signed_in_text(datetime(2026, 10, 6, 11, 23))
+
+
+async def test_signout_during_an_exchange_leaves_no_working_session(
+    anon_client, session_factory, api_settings, monkeypatch
+):
+    from pfa.services.auth import revoke_all_sessions
+
+    original = LoginTokenRepository.consume
+
+    async def consume_then_signout(self, jti, now):
+        used = await original(self, jti, now)
+        await revoke_all_sessions(session_factory)  # /signout lands mid-exchange
+        return used
+
+    monkeypatch.setattr(LoginTokenRepository, "consume", consume_then_signout)
+    token = await fresh_token(session_factory, api_settings)
+
+    response = await exchange(anon_client, token)
+
+    assert response.status_code == 401
+    assert SESSION_COOKIE not in response.headers.get("set-cookie", "")
+    assert (await anon_client.get("/auth/me")).status_code == 401

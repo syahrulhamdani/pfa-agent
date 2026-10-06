@@ -20,13 +20,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pfa.api.deps import get_session, require_session
 from pfa.bot.formatting import signed_in_text
 from pfa.core.config import Settings, get_settings
-from pfa.repository.finance import LoginTokenRepository
+from pfa.repository.finance import AuthStateRepository, LoginTokenRepository
 from pfa.services.auth import (
     SESSION_COOKIE,
     AuthError,
     TokenType,
     create_token,
     decode_token,
+    session_is_revoked,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -80,15 +81,22 @@ async def exchange(
         claims = decode_token(settings.auth_secret, body.token, TokenType.LOGIN)
     except AuthError:
         raise rejected from None
-    if not await LoginTokenRepository(session).consume(
-        claims["jti"], datetime.now(UTC)
-    ):
+    # The session is stamped with the moment the exchange began, before the link is
+    # consumed. A /signout landing at any point after that revokes this session too.
+    issued_at = datetime.now(UTC)
+    if not await LoginTokenRepository(session).consume(claims["jti"], issued_at):
         raise rejected
 
     days = settings.auth_session_days
     token, _, _ = create_token(
-        settings.auth_secret, TokenType.SESSION, timedelta(days=days)
+        settings.auth_secret,
+        TokenType.SESSION,
+        timedelta(days=days),
+        now=issued_at,
     )
+    valid_after = await AuthStateRepository(session).sessions_valid_after()
+    if session_is_revoked(int(issued_at.timestamp()), valid_after):
+        raise rejected  # /signout ran while this exchange was in flight
     response.set_cookie(
         SESSION_COOKIE,
         token,
