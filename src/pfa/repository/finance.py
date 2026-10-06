@@ -5,9 +5,11 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pfa.models import (
+    AuthState,
     Bank,
     Card,
     Category,
@@ -297,3 +299,32 @@ class LoginTokenRepository:
         )
         await self._session.commit()
         return result.rowcount == 1
+
+    async def expire_unused(self, now: datetime) -> None:
+        """Marks every unused link as used, so none can be exchanged any more."""
+        await self._session.execute(
+            update(LoginToken).where(LoginToken.used_at.is_(None)).values(used_at=now)
+        )
+        await self._session.commit()
+
+
+class AuthStateRepository:
+    """Remembers when all sessions were last revoked."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        """Binds the repository to a session."""
+        self._session = session
+
+    async def sessions_valid_after(self) -> datetime | None:
+        """Returns the revocation time, or None if sessions were never revoked."""
+        return await self._session.scalar(select(AuthState.sessions_valid_after))
+
+    async def revoke_sessions(self, now: datetime) -> None:
+        """Rejects every session issued up to now."""
+        stmt = insert(AuthState).values(id=1, sessions_valid_after=now)
+        await self._session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=["id"], set_={"sessions_valid_after": now}
+            )
+        )
+        await self._session.commit()

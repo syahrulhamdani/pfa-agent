@@ -5,7 +5,12 @@ from loguru import logger
 from telegram import LinkPreviewOptions, Update
 from telegram.ext import ContextTypes
 
-from pfa.bot.formatting import FAILED_TEXT, UNSUPPORTED_TEXT, login_text
+from pfa.bot.formatting import (
+    FAILED_TEXT,
+    SIGNED_OUT_TEXT,
+    UNSUPPORTED_TEXT,
+    login_text,
+)
 from pfa.bot.uploads import UploadCoordinator
 from pfa.core.exceptions import LLMError
 from pfa.graphs.chat import BUSY_REPLY, chat_reply
@@ -68,6 +73,19 @@ async def handle_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         login_text(link, context.bot_data["link_ttl_minutes"]),
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
+
+
+async def handle_signout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ends every web session and unused sign-in link."""
+    if not is_authorized(update, context.bot_data["chat_id"]):
+        logger.warning("Ignoring /signout from unauthorized chat")
+        return
+    message = update.effective_message
+    if message is None:
+        return
+    await context.bot_data["revoke_sessions"]()
+    logger.info("All web sessions were ended with /signout")
+    await message.reply_text(SIGNED_OUT_TEXT)
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

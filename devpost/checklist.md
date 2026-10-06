@@ -135,4 +135,4 @@ Activity mode:
 - Added slice 4, Telegram magic-link sign-in with JWT sessions, and renumbered the later slices — the learner requires authentication, which reverses the spec's "No login; one user identified by a configured Telegram chat id" simplification. Session length defaults to 7 days.
 - Receipt images are no longer written to disk: they are downloaded into memory, passed to Gemini and discarded, and the `uploads.file_path` column was dropped — the learner asked for this for security. A restart during extraction now fails that upload and asks for a resend. Images are kept out of graph state so the Postgres checkpointer never stores them.
 - The bot now tells the owner on Telegram when a sign-in link is used, so an unexpected sign-in is noticed.
-
+- Added `/signout` (ends every web session and unused link) and a sign-in notice that points to it — the learner asked for an actionable response to an unexpected sign-in. Sessions carry their issue time and are rejected if issued before the stored revocation time.

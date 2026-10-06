@@ -74,7 +74,7 @@ Carried from `prd.md > Look and Feel`. Implementation direction:
 ## Components
 
 ### Telegram bot
-Receives messages and files by async polling; sends acknowledgements, threaded replies, confirmation buttons, nudges and summaries. Only responds to the configured chat id. Commands: `/demo_summary`, `/demo_nudge`. Uploads start the extraction graph as a background task; casual messages start the chat graph.
+Receives messages and files by async polling; sends acknowledgements, threaded replies, confirmation buttons, nudges and summaries. Only responds to the configured chat id. Commands: `/login`, `/signout`, `/demo_summary`, `/demo_nudge`. Uploads start the extraction graph as a background task; casual messages start the chat graph.
 PRD ref: `prd.md > Upload and extraction`, `prd.md > Confirmation and data fields`.
 
 ### Extraction graph
@@ -102,7 +102,7 @@ Async FastAPI routers for transactions (including `GET /transactions` with recei
 PRD ref: `prd.md > Screens and Layout`.
 
 ### Sign-in
-A Telegram magic link with JWTs (PyJWT, HS256, signed with `AUTH_SECRET`). `/login` and every "Saved" reply send a login JWT (10 minutes, single use: its `jti` is stored in `login_tokens` and consumed atomically). The web `/auth` page exchanges it with `POST /auth/exchange` (a POST, so link-preview bots cannot spend it) for a session JWT (7 days) in an HttpOnly, SameSite=Lax cookie. Every other route checks that cookie. Telegram link previews are disabled on these messages and the token is removed from the address bar on arrival.
+A Telegram magic link with JWTs (PyJWT, HS256, signed with `AUTH_SECRET`). `/login` and every "Saved" reply send a login JWT (10 minutes, single use: its `jti` is stored in `login_tokens` and consumed atomically). The web `/auth` page exchanges it with `POST /auth/exchange` (a POST, so link-preview bots cannot spend it) for a session JWT (7 days) in an HttpOnly, SameSite=Lax cookie. Every other route checks that cookie. Telegram link previews are disabled on these messages and the token is removed from the address bar on arrival. When a link is used, the bot sends a short notice ("Signed in to the web app on … Not you? Send /signout."). `/signout` stores a "sessions valid after" time in the single-row `auth_state` table and marks every unused link as used; any session token issued at or before that second is rejected.
 PRD ref: `prd.md > The Core Journey` (step 6)
 
 ### Web app
@@ -123,6 +123,7 @@ All tables live in Postgres and persist across restarts. LangGraph's checkpointe
 - **nudge_slots**(id, time_of_day, source: default | learned)
 - **weekly_summaries**(id, week_start, stats_json, recommendations_text, created_at)
 - **login_tokens**(jti, expires_at, used_at, created_at) — one row per issued sign-in link.
+- **auth_state**(id = 1, sessions_valid_after) — a single row, set by `/signout`.
 
 Nudge learning uses the upload/confirmation time, not the receipt date, because receipts often have no time of day.
 

@@ -252,3 +252,78 @@ async def test_a_failing_notice_never_blocks_sign_in(
     response = await exchange(anon_client, token)
     assert response.status_code == 200
     assert (await anon_client.get("/auth/me")).status_code == 200
+
+
+# --- /signout ends every session and every unused link ---
+
+
+async def revoke_a_minute_ago(session_factory):
+    """Revokes at a fixed earlier moment, so tests can sign in again straight after."""
+    from pfa.services.auth import revoke_all_sessions
+
+    await revoke_all_sessions(
+        session_factory, now=datetime.now(UTC) - timedelta(minutes=1)
+    )
+
+
+def old_session_cookie(api_settings) -> str:
+    long_ago = datetime.now(UTC) - timedelta(hours=2)
+    token, _, _ = create_token(
+        api_settings.auth_secret, TokenType.SESSION, timedelta(days=7), now=long_ago
+    )
+    return token
+
+
+async def test_signout_ends_sessions_issued_before_it(
+    anon_client, session_factory, api_settings
+):
+    anon_client.cookies.set(SESSION_COOKIE, old_session_cookie(api_settings))
+    assert (await anon_client.get("/auth/me")).status_code == 200  # valid so far
+
+    await revoke_a_minute_ago(session_factory)
+
+    assert (await anon_client.get("/auth/me")).status_code == 401
+    assert (await anon_client.get("/transactions")).status_code == 401
+
+
+async def test_signing_in_again_after_signout_works(
+    anon_client, session_factory, api_settings
+):
+    await revoke_a_minute_ago(session_factory)
+    token = await fresh_token(session_factory, api_settings)
+    assert (await exchange(anon_client, token)).status_code == 200
+    assert (await anon_client.get("/auth/me")).status_code == 200
+
+
+async def test_signout_kills_unused_links(anon_client, session_factory, api_settings):
+    from pfa.services.auth import revoke_all_sessions
+
+    token = await fresh_token(session_factory, api_settings)  # issued, not yet used
+    await revoke_all_sessions(session_factory)
+    response = await exchange(anon_client, token)
+    assert response.status_code == 401
+    assert "/login" in response.json()["detail"]
+
+
+async def test_revoking_twice_keeps_one_row_and_the_latest_time(session_factory):
+    from sqlalchemy import func
+
+    from pfa.models import AuthState
+    from pfa.repository.finance import AuthStateRepository
+    from pfa.services.auth import revoke_all_sessions
+
+    first = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
+    second = first + timedelta(hours=1)
+    await revoke_all_sessions(session_factory, now=first)
+    await revoke_all_sessions(session_factory, now=second)
+    async with session_factory() as session:
+        rows = await session.scalar(select(func.count()).select_from(AuthState))
+        stored = await AuthStateRepository(session).sessions_valid_after()
+    assert rows == 1
+    assert stored == second
+
+
+async def test_the_sign_in_notice_offers_signout():
+    from pfa.bot.formatting import signed_in_text
+
+    assert "/signout" in signed_in_text(datetime(2026, 10, 6, 11, 23))

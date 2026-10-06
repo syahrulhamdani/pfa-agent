@@ -117,3 +117,28 @@ def test_login_token_without_an_id_is_rejected():
 def test_garbage_is_rejected(garbage):
     with pytest.raises(AuthError):
         decode_token(SECRET, garbage, TokenType.SESSION)
+
+
+# --- /signout: which sessions count as revoked ---
+
+
+def test_never_revoked_means_no_session_is_revoked():
+    from pfa.services.auth import session_is_revoked
+
+    assert session_is_revoked(1_000, None) is False
+
+
+def test_sessions_issued_before_or_in_the_revocation_second_are_revoked():
+    from pfa.services.auth import session_is_revoked
+
+    revoked_at = datetime(2026, 10, 6, 12, 0, 0, 900_000, tzinfo=UTC)
+    second = int(revoked_at.timestamp())
+    assert session_is_revoked(second - 3600, revoked_at) is True
+    assert session_is_revoked(second, revoked_at) is True  # same second: revoked
+
+
+def test_sessions_issued_after_the_revocation_second_are_valid():
+    from pfa.services.auth import session_is_revoked
+
+    revoked_at = datetime(2026, 10, 6, 12, 0, 0, 900_000, tzinfo=UTC)
+    assert session_is_revoked(int(revoked_at.timestamp()) + 1, revoked_at) is False

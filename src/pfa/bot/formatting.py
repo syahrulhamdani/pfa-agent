@@ -94,4 +94,13 @@ def login_text(link: str, ttl_minutes: int) -> str:
 
 def signed_in_text(when: datetime) -> str:
     """Formats the notice sent to Telegram when a sign-in link has been used."""
-    return f"Signed in to the web app on {when:%d %b} at {when:%H:%M}."
+    return (
+        f"Signed in to the web app on {when:%d %b} at {when:%H:%M}. "
+        "Not you? Send /signout."
+    )
+
+
+SIGNED_OUT_TEXT = (
+    "Signed out of the web app everywhere, and any unused sign-in links no longer "
+    "work. Send /login for a new link."
+)

@@ -18,7 +18,7 @@ from pfa.graphs.chat import build_chat_graph
 from pfa.graphs.extraction import build_extraction_graph
 from pfa.graphs.extractors import GeminiCorrectionParser, GeminiExtractor
 from pfa.graphs.llm import build_chat_model, build_extract_model
-from pfa.services.auth import issue_login_link
+from pfa.services.auth import issue_login_link, revoke_all_sessions
 from pfa.services.categories import load_category_names, seed_categories
 from pfa.services.images import ImageStash
 
@@ -61,7 +61,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async def issue_link() -> str:
             return await issue_login_link(session_factory, settings)
 
+        async def revoke_sessions() -> None:
+            await revoke_all_sessions(session_factory)
+
         application.bot_data["issue_link"] = issue_link
+        application.bot_data["revoke_sessions"] = revoke_sessions
         application.bot_data["link_ttl_minutes"] = settings.auth_link_ttl_minutes
         application.bot_data["coordinator"] = UploadCoordinator(
             bot=application.bot,

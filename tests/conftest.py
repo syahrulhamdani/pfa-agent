@@ -85,7 +85,7 @@ async def session_factory(test_database_url):
         await conn.execute(
             text(
                 "TRUNCATE transactions, uploads, cards, banks, categories, "
-                "login_tokens "
+                "login_tokens, auth_state "
                 "RESTART IDENTITY CASCADE"
             )
         )

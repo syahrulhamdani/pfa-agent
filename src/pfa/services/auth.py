@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from pfa.core.config import Settings
 from pfa.core.exceptions import PfaError
-from pfa.repository.finance import LoginTokenRepository
+from pfa.repository.finance import AuthStateRepository, LoginTokenRepository
 
 ALGORITHM = "HS256"
 SESSION_COOKIE = "pfa_session"
@@ -105,6 +105,30 @@ async def issue_login_link(
         await LoginTokenRepository(session).add(jti, expires, issued)
     query = urlencode({"token": token, "next": next_path})
     return f"{settings.web_base_url}/auth?{query}"
+
+
+def session_is_revoked(issued_at: int, valid_after: datetime | None) -> bool:
+    """Tells whether a session issued at `issued_at` was ended by /signout.
+
+    JWT issue times are whole seconds, so a session issued in the same second as
+    the revocation counts as revoked. That costs at most one second of overlap and
+    can never leave an old session alive.
+
+    Args:
+        issued_at: The token's `iat` claim, in seconds since the epoch.
+        valid_after: When sessions were last revoked, or None if never.
+    """
+    return valid_after is not None and issued_at <= int(valid_after.timestamp())
+
+
+async def revoke_all_sessions(
+    session_factory: async_sessionmaker[AsyncSession], now: datetime | None = None
+) -> None:
+    """Ends every web session and kills every unused sign-in link."""
+    moment = now or datetime.now(UTC)
+    async with session_factory() as session:
+        await AuthStateRepository(session).revoke_sessions(moment)
+        await LoginTokenRepository(session).expire_unused(moment)
 
 
 LinkIssuer = Callable[[], Awaitable[str]]

@@ -179,3 +179,26 @@ async def test_login_command_ignores_other_chats():
     await handle_login(update, context)
     issue.assert_not_called()
     update.effective_message.reply_text.assert_not_called()
+
+
+async def test_signout_command_revokes_and_confirms():
+    from pfa.bot.formatting import SIGNED_OUT_TEXT
+    from pfa.bot.handlers import handle_signout
+
+    update = _update(42, "/signout")
+    revoke = AsyncMock()
+    context = SimpleNamespace(bot_data={"chat_id": 42, "revoke_sessions": revoke})
+    await handle_signout(update, context)
+    revoke.assert_awaited_once()
+    update.effective_message.reply_text.assert_awaited_once_with(SIGNED_OUT_TEXT)
+
+
+async def test_signout_command_ignores_other_chats():
+    from pfa.bot.handlers import handle_signout
+
+    update = _update(7, "/signout")
+    revoke = AsyncMock()
+    context = SimpleNamespace(bot_data={"chat_id": 42, "revoke_sessions": revoke})
+    await handle_signout(update, context)
+    revoke.assert_not_called()
+    update.effective_message.reply_text.assert_not_called()
