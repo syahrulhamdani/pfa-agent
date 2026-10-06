@@ -1,8 +1,6 @@
 """Gemini-backed extraction and correction parsing, via structured output."""
 
-import asyncio
 import base64
-from pathlib import Path
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
@@ -38,14 +36,13 @@ class GeminiExtractor:
         self._model = model.with_structured_output(ExtractedReceipt)
 
     async def __call__(
-        self, file_path: str, mime_type: str, categories: list[str]
+        self, content: bytes, mime_type: str, categories: list[str]
     ) -> ExtractedReceipt:
-        """Extracts fields from one receipt image.
+        """Extracts fields from one receipt image held in memory.
 
         Raises:
             LLMError: If the model call fails.
         """
-        raw = await asyncio.to_thread(Path(file_path).read_bytes)
         message = HumanMessage(
             content=[
                 {
@@ -54,7 +51,7 @@ class GeminiExtractor:
                 },
                 {
                     "type": "image",
-                    "base64": base64.b64encode(raw).decode(),
+                    "base64": base64.b64encode(content).decode(),
                     "mime_type": mime_type,
                 },
             ]

@@ -35,7 +35,8 @@ from pfa.services.pending import (
 )
 from pfa.services.validation import missing_fields
 
-Extractor = Callable[[str, str, list[str]], Awaitable[ExtractedReceipt]]
+Extractor = Callable[[bytes, str, list[str]], Awaitable[ExtractedReceipt]]
+ImageSource = Callable[[int], bytes]
 CorrectionParser = Callable[
     [str, PendingTransaction, list[str], list[str]], Awaitable[CorrectionResult]
 ]
@@ -71,6 +72,7 @@ def build_extraction_graph(
     *,
     session_factory: async_sessionmaker[AsyncSession],
     extractor: Extractor,
+    image_source: ImageSource,
     parse_correction: CorrectionParser,
     checkpointer: BaseCheckpointSaver,
     today: Callable[[], date] = date.today,
@@ -79,7 +81,9 @@ def build_extraction_graph(
 
     Args:
         session_factory: Creates database sessions.
-        extractor: Reads a receipt file into fields (Gemini Pro in the app).
+        extractor: Reads receipt image bytes into fields (Gemini Pro in the app).
+        image_source: Returns the in-memory image for an upload id. Images are never
+            stored in graph state, so the checkpointer never holds them.
         parse_correction: Interprets typed text as a correction (Flash Lite).
         checkpointer: Stores the paused state between Telegram messages.
         today: Returns the current date; injectable for tests.
@@ -95,7 +99,9 @@ def build_extraction_graph(
             categories = CategoryRepository(session)
             names = [c.name for c in await categories.list_all()]
             cards = await CardRepository(session).list_options()
-            receipt = await extractor(upload.file_path, upload.mime_type, names)
+            receipt = await extractor(
+                image_source(state["upload_id"]), upload.mime_type, names
+            )
             category_id = (
                 await categories.get_id_by_name(receipt.category)
                 if receipt.category

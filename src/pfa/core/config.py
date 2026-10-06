@@ -21,7 +21,6 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(min_length=1)
     gemini_chat_model: str = "gemini-flash-lite-latest"
     gemini_extract_model: str = "gemini-pro-latest"
-    upload_dir: str = "data/uploads"
     categories_file: str = "config/categories.json"
     # Web sign-in. AUTH_SECRET signs every token, so keep it long, random and private.
     auth_secret: str = Field(min_length=32)

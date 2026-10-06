@@ -118,7 +118,6 @@ class UploadRepository:
         telegram_message_id: int,
         kind: str,
         filename: str,
-        file_path: str,
         mime_type: str,
     ) -> Upload:
         """Records a new upload in the processing state."""
@@ -126,7 +125,6 @@ class UploadRepository:
             telegram_message_id=telegram_message_id,
             kind=kind,
             filename=filename,
-            file_path=file_path,
             mime_type=mime_type,
             status=UploadStatus.PROCESSING.value,
         )

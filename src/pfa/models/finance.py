@@ -65,7 +65,6 @@ class Upload(Base):
     telegram_message_id: Mapped[int]
     kind: Mapped[str] = mapped_column(String(20))
     filename: Mapped[str] = mapped_column(String(255))
-    file_path: Mapped[str] = mapped_column(String(500))
     mime_type: Mapped[str] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(
         String(30), default=UploadStatus.PROCESSING.value

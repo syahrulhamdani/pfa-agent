@@ -3,6 +3,7 @@
 Gemini is replaced by stub callables; Postgres is real (the pfa_test database).
 """
 
+import base64
 from datetime import date
 
 import pytest
@@ -38,8 +39,13 @@ FULL = ExtractedReceipt(
 )
 
 
-def make_graph(session_factory, receipt=FULL, correction=None, saver=None):
-    async def extractor(path, mime, categories):
+IMAGE = b"\xff\xd8receipt-image-bytes"
+
+
+def make_graph(session_factory, receipt=FULL, correction=None, saver=None, seen=None):
+    async def extractor(content, mime, categories):
+        if seen is not None:
+            seen.append(content)
         if isinstance(receipt, Exception):
             raise receipt
         return receipt
@@ -50,6 +56,7 @@ def make_graph(session_factory, receipt=FULL, correction=None, saver=None):
     return build_extraction_graph(
         session_factory=session_factory,
         extractor=extractor,
+        image_source=lambda upload_id: IMAGE,
         parse_correction=parser,
         checkpointer=saver or InMemorySaver(),
         today=lambda: TODAY,
@@ -65,7 +72,6 @@ async def new_upload(session_factory, with_card=True) -> int:
             telegram_message_id=10,
             kind="image",
             filename="r.jpg",
-            file_path="/tmp/r.jpg",
             mime_type="image/jpeg",
         )
         return upload.id
@@ -193,3 +199,44 @@ async def test_confirmation_survives_a_restart(session_factory, test_database_ur
 
     assert pending_interrupt(result) is None
     assert await statuses(session_factory, upload_id) == (UploadStatus.DONE, 0, 1)
+
+
+async def test_the_extractor_receives_the_in_memory_image(session_factory):
+    seen: list[bytes] = []
+    upload_id = await new_upload(session_factory)
+    graph = make_graph(session_factory, seen=seen)
+    await run(graph, upload_id)
+    assert seen == [IMAGE]
+
+
+async def test_image_bytes_never_reach_the_checkpoint_tables(
+    session_factory, test_database_url
+):
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    conn = test_database_url.replace("+asyncpg", "", 1)
+    upload_id = await new_upload(session_factory)
+    async with AsyncPostgresSaver.from_conn_string(conn) as saver:
+        await saver.setup()
+        graph = make_graph(session_factory, saver=saver)
+        await run(graph, upload_id)  # extract, then pause for confirmation
+        await run(graph, upload_id, {"action": "confirm"})
+
+    raw_hits = (
+        "select count(*) from checkpoint_blobs where position(:raw in blob) > 0",
+        "select count(*) from checkpoint_writes where position(:raw in blob) > 0",
+    )
+    text_hits = (
+        "select count(*) from checkpoints where checkpoint::text like :b64",
+        "select count(*) from checkpoints where metadata::text like :b64",
+    )
+    params = {"raw": IMAGE, "b64": f"%{base64.b64encode(IMAGE).decode()[:16]}%"}
+    engine = create_async_engine(test_database_url)
+    async with engine.connect() as db:
+        hits = [
+            await db.scalar(text(sql), {k: v for k, v in params.items() if k in sql})
+            for sql in (*raw_hits, *text_hits)
+        ]
+    await engine.dispose()
+    assert hits == [0, 0, 0, 0]  # not in any checkpoint table, raw or base64

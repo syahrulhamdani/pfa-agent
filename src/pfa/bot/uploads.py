@@ -1,9 +1,7 @@
 """Runs the extraction graph for Telegram uploads without blocking the chat."""
 
 import asyncio
-import uuid
 from collections import defaultdict
-from pathlib import Path
 from typing import Any
 
 from langgraph.graph.state import CompiledStateGraph
@@ -24,6 +22,7 @@ from pfa.graphs.extraction import NOT_A_CORRECTION, pending_interrupt, thread_co
 from pfa.models import UploadStatus
 from pfa.repository.finance import UploadRepository
 from pfa.services.auth import LinkIssuer
+from pfa.services.images import ImageStash
 
 
 class UploadCoordinator:
@@ -37,6 +36,7 @@ class UploadCoordinator:
         session_factory: async_sessionmaker[AsyncSession],
         settings: Settings,
         issue_link: LinkIssuer,
+        images: ImageStash,
     ) -> None:
         """Wires the coordinator to Telegram, the graph and the database."""
         self._bot = bot
@@ -44,6 +44,7 @@ class UploadCoordinator:
         self._session_factory = session_factory
         self._settings = settings
         self._issue_link = issue_link
+        self._images = images
         self._tasks: set[asyncio.Task] = set()
         self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
@@ -51,22 +52,19 @@ class UploadCoordinator:
         self, message: Message, file_id: str, filename: str, mime_type: str
     ) -> None:
         """Saves an upload, acknowledges it, and starts extraction in the background."""
-        logger.info("Downloading {} from Telegram", filename)
+        logger.info("Downloading {} from Telegram into memory", filename)
         telegram_file = await self._bot.get_file(file_id)
-        directory = Path(self._settings.upload_dir)
-        directory.mkdir(parents=True, exist_ok=True)
-        suffix = Path(filename).suffix or ".bin"
-        path = directory / f"{uuid.uuid4().hex}{suffix}"
-        await telegram_file.download_to_drive(path)
-        logger.info("Saved upload to {} ({} bytes)", path, path.stat().st_size)
+        # Kept in memory only: a receipt is never written to disk or the database.
+        content = bytes(await telegram_file.download_as_bytearray())
+        logger.info("Downloaded {} bytes (held in memory only)", len(content))
         async with self._session_factory() as session:
             upload = await UploadRepository(session).add(
                 telegram_message_id=message.message_id,
                 kind="image",
                 filename=filename,
-                file_path=str(path),
                 mime_type=mime_type,
             )
+        self._images.put(upload.id, content)
         logger.info("Upload {} recorded; starting extraction", upload.id)
         await message.reply_text(PROCESSING_TEXT)
         task = asyncio.create_task(self._extract(upload.id, message.message_id))
@@ -110,6 +108,9 @@ class UploadCoordinator:
                     upload_id, UploadStatus.FAILED
                 )
             await self._send(FAILED_TEXT, message_id)
+        finally:
+            # Extraction is the only step that needs the image; drop it either way.
+            self._images.discard(upload_id)
 
     async def _run(
         self, upload_id: int, graph_input: Any, quiet_chat: bool = False

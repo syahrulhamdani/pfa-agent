@@ -1,7 +1,6 @@
 """Boundary: typed text is a correction only when the graph says so."""
 
 import asyncio
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -13,6 +12,7 @@ from pfa.bot.uploads import UploadCoordinator
 from pfa.graphs.extraction import NOT_A_CORRECTION
 from pfa.models import Upload, UploadStatus
 from pfa.repository.finance import UploadRepository
+from pfa.services.images import ImageStash
 
 LINK = "http://web/auth?token=T&next=/transactions/today"
 
@@ -31,7 +31,6 @@ async def _upload(session_factory):
             telegram_message_id=10,
             kind="image",
             filename="r.jpg",
-            file_path="/tmp/r.jpg",
             mime_type="image/jpeg",
         )
 
@@ -45,6 +44,7 @@ def _coordinator(session_factory, settings, result):
         session_factory=session_factory,
         settings=settings,
         issue_link=AsyncMock(return_value=LINK),
+        images=ImageStash(),
     )
     return coordinator, bot, graph
 
@@ -112,17 +112,15 @@ class FakeTelegramFile:
         self.content = content
         self.fail = fail
 
-    async def download_to_drive(self, path):
+    async def download_as_bytearray(self):
         if self.fail:
             raise OSError("download interrupted")
-        path.write_bytes(self.content)
+        return bytearray(self.content)
 
 
 def _receive_setup(
     session_factory, settings, tmp_path, result=None, telegram_file=None
 ):
-
-    settings = settings.model_copy(update={"upload_dir": str(tmp_path / "uploads")})
     graph = SimpleNamespace(ainvoke=AsyncMock(return_value=result or _paused()))
     bot = SimpleNamespace(
         get_file=AsyncMock(return_value=telegram_file or FakeTelegramFile()),
@@ -134,6 +132,7 @@ def _receive_setup(
         session_factory=session_factory,
         settings=settings,
         issue_link=AsyncMock(return_value=LINK),
+        images=ImageStash(),
     )
     message = SimpleNamespace(message_id=55, reply_text=AsyncMock())
     return coordinator, bot, graph, message, settings
@@ -145,13 +144,21 @@ async def _all_uploads(session_factory):
         return list(await session.scalars(select(Upload)))
 
 
-async def test_receive_downloads_records_and_starts_extraction(
-    session_factory, settings, tmp_path
+async def test_receive_keeps_the_image_in_memory_only(
+    session_factory, settings, tmp_path, monkeypatch
 ):
-
+    monkeypatch.chdir(tmp_path)  # any file the app wrote would land here
     coordinator, bot, graph, message, _ = _receive_setup(
         session_factory, settings, tmp_path
     )
+    held_during_extraction = []
+
+    async def extraction_run(graph_input, config):
+        held_during_extraction.append(coordinator._images.get(graph_input["upload_id"]))
+        return _paused()
+
+    graph.ainvoke.side_effect = extraction_run
+
     await coordinator.receive(message, "file-abc", "receipt.jpg", "image/jpeg")
 
     bot.get_file.assert_awaited_once_with("file-abc")  # Telegram getFile
@@ -159,26 +166,26 @@ async def test_receive_downloads_records_and_starts_extraction(
     (upload,) = await _all_uploads(session_factory)
     assert upload.telegram_message_id == 55
     assert upload.mime_type == "image/jpeg"
+    assert upload.filename == "receipt.jpg"
     assert upload.status == UploadStatus.PROCESSING
-    assert Path(upload.file_path).read_bytes() == b"fake-jpeg-bytes"
-    assert Path(upload.file_path).suffix == ".jpg"
+    assert not hasattr(upload, "file_path")
 
     await asyncio.gather(*coordinator._tasks)  # the background extraction
-    graph.ainvoke.assert_awaited_once()
-    assert graph.ainvoke.await_args.args[0] == {"upload_id": upload.id}
+    assert held_during_extraction == [b"fake-jpeg-bytes"]  # the graph saw the bytes
+    assert len(coordinator._images) == 0  # and they are gone afterwards
+    assert list(tmp_path.rglob("*")) == []  # nothing was written to disk
     review = bot.send_message.await_args.kwargs
     assert review["reply_parameters"].message_id == 55
     assert "Indomaret" in review["text"]
 
 
-async def test_receive_keeps_original_extension_for_image_files(
+async def test_receive_records_filename_and_mime_type_of_image_files(
     session_factory, settings, tmp_path
 ):
-
     coordinator, *_, message, _ = _receive_setup(session_factory, settings, tmp_path)
     await coordinator.receive(message, "f", "scan.PNG", "image/png")
     (upload,) = await _all_uploads(session_factory)
-    assert Path(upload.file_path).suffix == ".PNG"
+    assert upload.filename == "scan.PNG"
     assert upload.mime_type == "image/png"
 
 
@@ -220,6 +227,7 @@ async def test_extraction_failure_marks_failed_and_tells_user(
 
     (upload,) = await _all_uploads(session_factory)
     assert upload.status == UploadStatus.FAILED
+    assert len(coordinator._images) == 0  # dropped even though extraction failed
     sent = bot.send_message.await_args.kwargs
     assert sent["text"] == FAILED_TEXT
     assert sent["reply_parameters"].message_id == 55

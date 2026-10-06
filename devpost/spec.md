@@ -21,7 +21,7 @@ Why this shape: one process is easy to start and debug, polling and a refetch ti
 
 PRD ref: `prd.md > The Core Journey`.
 
-1. **You send a receipt or statement in Telegram.** The bot (async polling) receives it, saves a record in `uploads`, and instantly replies "processing" (`prd.md > Upload and extraction`).
+1. **You send a receipt or statement in Telegram.** The bot (async polling) downloads it with `getFile` straight into memory, saves a record in `uploads` (no file is written to disk), and instantly replies "processing" (`prd.md > Upload and extraction`).
 2. **The extraction graph runs as a background task** so the chat stays usable. Steps: detect file type → parse (CSV and Excel rows are read in Python; images and PDFs go straight to Gemini) → extract fields with Gemini Pro → infer the card → check which required fields are missing. Results are stored as `pending` transactions.
 3. **The bot replies to your original message** with the extracted fields. Missing or unreadable fields are listed and you are asked to fill them in; a missing card shows your cards as buttons. For a statement, the reply gives the total count, highest, lowest and total amount (`prd.md > Confirmation and data fields`).
 4. **The graph pauses for your confirmation** (a human-in-the-loop interrupt). Your tap on Confirm, or a typed correction that Flash Lite parses into field changes, resumes it. Confirming flips pending rows to `confirmed`; one tap confirms a whole statement.
@@ -55,7 +55,7 @@ Unverified, to check first in the build: the exact Gemini model IDs for Flash Li
 Everything runs locally; this is enough for the required demo video and the public GitHub repo. No deployment.
 
 - Requirements: Python via pyenv, `uv`, Node, Docker, a Telegram bot token (from BotFather) and a Gemini API key.
-- Config: `.env.example` is the env file (per your convention) with `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`, `GEMINI_CHAT_MODEL`, `GEMINI_EXTRACT_MODEL`, `WEB_BASE_URL`, `TIMEZONE`, `LOG_LEVEL`, `LOG_USE_BASIC_FORMAT`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `UPLOAD_DIR`, `CATEGORIES_FILE`, `AUTH_SECRET`, `AUTH_LINK_TTL_MINUTES`, `AUTH_SESSION_DAYS`, `AUTH_COOKIE_SECURE`. Real secrets must not be committed to the public repo.
+- Config: `.env.example` is the env file (per your convention) with `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`, `GEMINI_CHAT_MODEL`, `GEMINI_EXTRACT_MODEL`, `WEB_BASE_URL`, `TIMEZONE`, `LOG_LEVEL`, `LOG_USE_BASIC_FORMAT`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `CATEGORIES_FILE`, `AUTH_SECRET`, `AUTH_LINK_TTL_MINUTES`, `AUTH_SESSION_DAYS`, `AUTH_COOKIE_SECURE`. Real secrets must not be committed to the public repo.
 - Start:
   1. `docker compose up -d db`
   2. `uv run --env-file .env.example alembic upgrade head`
@@ -78,7 +78,7 @@ Receives messages and files by async polling; sends acknowledgements, threaded r
 PRD ref: `prd.md > Upload and extraction`, `prd.md > Confirmation and data fields`.
 
 ### Extraction graph
-LangGraph graph with nodes: detect type → parse → extract (Gemini Pro, structured output) → infer card → validate required fields → request missing input / await confirmation (interrupt) → commit. Unreadable fields stay `null`. Statement summary (count, highest, lowest, total) is computed in code, not by the model.
+LangGraph graph with nodes: detect type → parse → extract (Gemini Pro, structured output) → infer card → validate required fields → request missing input / await confirmation (interrupt) → commit. Unreadable fields stay `null`. Statement summary (count, highest, lowest, total) is computed in code, not by the model. Receipt images are held in memory only: they go from Telegram to the model and are discarded when extraction ends, and they are never stored in graph state, so the Postgres checkpointer never holds them.
 PRD ref: `prd.md > Upload and extraction`, `prd.md > Confirmation and data fields`.
 
 ### Chat graph
@@ -148,7 +148,8 @@ pfa/
 │       ├── services/
 │       │   ├── analytics.py
 │       │   ├── nudges.py       # slot learning + scheduler jobs
-│       │   └── uploads.py      # upload bookkeeping, file download
+│       │   ├── uploads.py      # upload bookkeeping
+│       │   └── images.py       # in-memory hand-off of receipt images (never on disk)
 │       ├── graphs/             # LangGraph orchestration for every LLM call
 │       │   ├── extraction.py
 │       │   ├── chat.py
@@ -183,6 +184,7 @@ pfa/
 
 - **Extraction fails or the file is blurry** → the bot returns what it could read and asks you to enter the missing fields; if the whole graph run fails, the upload is marked `failed` and you get a short "couldn't process, please resend".
 - **Gemini rate limit or timeout** → one retry inside the graph node, then the failure message above. Chat replies a short "busy, try again".
+- **Bot restarts while an image is being read** → receipt images exist only in memory, so that upload is marked `failed` and you are asked to resend it. Nothing is recovered from disk because nothing is stored there.
 - **Bot process stops** → nudges and summaries stop, and paused confirmations resume after restart because they live in the Postgres checkpointer. In-process scheduling is the accepted cost; the `/demo_*` commands are the demo fallback.
 
 ## What Was Simplified and Why
