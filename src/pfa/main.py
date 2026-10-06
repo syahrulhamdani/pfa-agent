@@ -14,6 +14,7 @@ from pfa.bot.uploads import UploadCoordinator
 from pfa.core.config import get_settings
 from pfa.core.database import create_engine, create_session_factory
 from pfa.core.loggers import configure_logging
+from pfa.core.tracing import configure_tracing
 from pfa.graphs.chat import build_chat_graph
 from pfa.graphs.extraction import build_extraction_graph
 from pfa.graphs.extractors import GeminiCorrectionParser, GeminiExtractor
@@ -30,8 +31,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(settings.log_level, settings.log_use_basic_format)
     if settings.langsmith_tracing and not settings.langsmith_api_key:
         logger.warning("LANGSMITH_TRACING is on but LANGSMITH_API_KEY is empty")
+    if settings.tracing_enabled:
+        configure_tracing()  # before any graph runs, so every trace is redacted
     logger.info(
-        "LangSmith tracing {} (project: {})",
+        "LangSmith tracing {} (project: {}; receipt images are never uploaded)",
         "enabled" if settings.tracing_enabled else "disabled",
         settings.langsmith_project,
     )

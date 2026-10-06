@@ -178,7 +178,7 @@ pfa/
 - **Telegram Bot API** — docs: https://core.telegram.org/bots/api. Needs a token from BotFather. Free. File downloads go through `getFile`.
 - **PostgreSQL** — local Docker container; no cost.
 - **LangGraph** — open-source library, no account needed.
-- **LangSmith** — observability for every LangGraph and Gemini call. Needs `LANGSMITH_API_KEY`; free tier is enough. Off by default (`LANGSMITH_TRACING=false`) because traces contain message and, later, receipt contents. Added by the learner during slice 1; docs: https://docs.smith.langchain.com/.
+- **LangSmith** — observability for every LangGraph and Gemini call. Needs `LANGSMITH_API_KEY`; free tier is enough. Off by default (`LANGSMITH_TRACING=false`) because traces contain messages and extracted receipt data. Receipt images are always redacted from the uploaded copy of a trace (`core/tracing.py`, a LangSmith client `anonymizer`); the request sent to Gemini is never altered. Added by the learner during slice 1; docs: https://docs.smith.langchain.com/.
 - No hosting, email or payment services.
 
 ## Important Failure Modes
