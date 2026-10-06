@@ -1,7 +1,7 @@
 """Tables for banks, cards, categories, uploads and transactions."""
 
 import enum
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 
 from sqlalchemy import (
@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     String,
+    Time,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -127,3 +128,13 @@ class AuthState(Base):
     sessions_valid_after: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+
+
+class NudgeSlot(Base):
+    """A time of day at which pfa nudges the user to upload receipts."""
+
+    __tablename__ = "nudge_slots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    time_of_day: Mapped[time] = mapped_column(Time)
+    source: Mapped[str] = mapped_column(String(10))  # "default" or "learned"

@@ -1,6 +1,6 @@
 """Async repositories for banks, cards, categories, uploads and transactions."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -14,6 +14,7 @@ from pfa.models import (
     Card,
     Category,
     LoginToken,
+    NudgeSlot,
     Transaction,
     TransactionStatus,
     Upload,
@@ -257,6 +258,18 @@ class TransactionRepository:
             for tx, category, bank, card, last4 in rows
         ]
 
+    async def confirmed_times(self) -> list[datetime]:
+        """Returns when each confirmed transaction was confirmed, oldest first."""
+        result = await self._session.scalars(
+            select(Transaction.confirmed_at)
+            .where(
+                Transaction.status == TransactionStatus.CONFIRMED.value,
+                Transaction.confirmed_at.is_not(None),
+            )
+            .order_by(Transaction.confirmed_at)
+        )
+        return list(result)
+
     async def list_confirmed_between(
         self, start: datetime, end: datetime
     ) -> list[tuple[Transaction, str | None, str | None]]:
@@ -326,5 +339,28 @@ class AuthStateRepository:
             stmt.on_conflict_do_update(
                 index_elements=["id"], set_={"sessions_valid_after": now}
             )
+        )
+        await self._session.commit()
+
+
+class NudgeSlotRepository:
+    """Stores the times of day pfa nudges at."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        """Binds the repository to a session."""
+        self._session = session
+
+    async def list_all(self) -> list[NudgeSlot]:
+        """Returns the current slots, earliest first."""
+        result = await self._session.scalars(
+            select(NudgeSlot).order_by(NudgeSlot.time_of_day)
+        )
+        return list(result)
+
+    async def replace_all(self, slots: list[tuple[time, str]]) -> None:
+        """Replaces every slot with the given (time, source) pairs, atomically."""
+        await self._session.execute(delete(NudgeSlot))
+        self._session.add_all(
+            NudgeSlot(time_of_day=at, source=source) for at, source in slots
         )
         await self._session.commit()

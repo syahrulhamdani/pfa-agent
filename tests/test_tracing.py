@@ -81,10 +81,18 @@ def test_the_input_is_not_modified():
 def test_configure_tracing_installs_a_global_redacting_client(monkeypatch):
     from langchain_core.tracers.langchain import get_client
 
+    class OfflineClient:
+        """Stands in for the real client, which would contact LangSmith on creation."""
+
+        def __init__(self, **kwargs):
+            self.anonymizer = kwargs["anonymizer"]
+
+    monkeypatch.setattr("pfa.core.tracing.Client", OfflineClient)
     monkeypatch.setattr(rt, "_CLIENT", None)
     configure_tracing()
     client = get_client()  # what LangChain and LangGraph use
-    assert client._anonymizer is redact_images
+    assert isinstance(client, OfflineClient)
+    assert client.anonymizer is redact_images
 
 
 def test_uploaded_trace_has_no_image_but_the_model_received_it(monkeypatch):

@@ -12,6 +12,7 @@ from pfa.api import auth, banks, transactions
 from pfa.api.deps import require_session
 from pfa.api.errors import validation_error_handler
 from pfa.bot.app import build_application
+from pfa.bot.nudges import build_nudge_sender
 from pfa.bot.uploads import UploadCoordinator
 from pfa.core.config import get_settings
 from pfa.core.database import create_engine, create_session_factory
@@ -24,6 +25,8 @@ from pfa.graphs.llm import build_chat_model, build_extract_model
 from pfa.services.auth import issue_login_link, revoke_all_sessions
 from pfa.services.categories import load_category_names, seed_categories
 from pfa.services.images import ImageStash
+from pfa.services.nudges import NudgeService
+from pfa.services.scheduler import NudgeScheduler
 
 
 @asynccontextmanager
@@ -71,6 +74,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         application.bot_data["issue_link"] = issue_link
         application.bot_data["revoke_sessions"] = revoke_sessions
+        send_nudge = build_nudge_sender(application.bot, settings.telegram_chat_id)
+        application.bot_data["send_nudge"] = send_nudge
+        nudges = NudgeScheduler(
+            service=NudgeService(session_factory, settings.timezone),
+            send_nudge=send_nudge,
+            timezone=settings.timezone,
+        )
         application.bot_data["link_ttl_minutes"] = settings.auth_link_ttl_minutes
         application.bot_data["coordinator"] = UploadCoordinator(
             bot=application.bot,
@@ -86,9 +96,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await application.start()
         await application.updater.start_polling(drop_pending_updates=True)
         logger.info("Telegram polling started")
+        await nudges.start()
         try:
             yield
         finally:
+            nudges.shutdown()
             await application.updater.stop()
             await application.stop()
             await application.shutdown()

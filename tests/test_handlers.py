@@ -202,3 +202,16 @@ async def test_signout_command_ignores_other_chats():
     await handle_signout(update, context)
     revoke.assert_not_called()
     update.effective_message.reply_text.assert_not_called()
+
+
+async def test_demo_nudge_sends_a_nudge_for_the_owner_only():
+    from pfa.bot.handlers import handle_demo_nudge
+
+    send = AsyncMock()
+    context = SimpleNamespace(bot_data={"chat_id": 42, "send_nudge": send})
+    await handle_demo_nudge(_update(42, "/demo_nudge"), context)
+    send.assert_awaited_once()
+
+    send.reset_mock()
+    await handle_demo_nudge(_update(7, "/demo_nudge"), context)
+    send.assert_not_called()

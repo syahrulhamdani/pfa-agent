@@ -49,7 +49,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Send `/login` in Telegram, open the link, confirm Transactions loads, then open the same link again and confirm it is rejected; sign out and confirm the pages ask you to get a new link.
   Commit: `Add Telegram magic-link sign-in with JWT sessions`
 
-- [ ] **5. pfa nudges you at the times you usually spend (the unique kernel)**
+- [x] **5. pfa nudges you at the times you usually spend (the unique kernel)**
   Becomes usable: pfa sends upload nudges at six default daily slots, learns slots from your past confirmed transactions once there are enough, and `/demo_nudge` fires one on demand. Ignored nudges get no follow-up.
   Why now: The nudge is one half of the unique kernel and only needs confirmed transactions, so it goes in right after the data exists instead of last.
   PRD ref: `prd.md > Adaptive nudges`, `prd.md > States and Boundaries` (ignored nudge, demo triggering)
@@ -138,3 +138,4 @@ Activity mode:
 - Added `/signout` (ends every web session and unused link) and a sign-in notice that points to it — the learner asked for an actionable response to an unexpected sign-in. Sessions carry their issue time and are rejected if issued before the stored revocation time.
 - LangSmith traces now redact receipt images (base64 blocks, data URLs and raw bytes) before upload, through a global client anonymizer — the learner asked for it for privacy; the live Gemini request is untouched.
 - Rejected requests now answer in plain words (which field, the expected format, an example), and the Transactions page checks month, date and amount formats itself before asking the server — some browsers show month and date pickers as plain text boxes, and the raw validation error was hidden behind "Unprocessable Entity".
+- Nudge slots are re-learned daily at 04:00 as well as at startup, and the clustering day starts at 04:00 to handle times around midnight — details the spec left open; the learner chose the six default times.

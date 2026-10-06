@@ -5,6 +5,7 @@ from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
+NUDGE_TEXT = "Any purchases to record? Send a receipt photo and I'll add it."
 PROCESSING_TEXT = "Processing this now. You can keep chatting in the meantime."
 FAILED_TEXT = "I couldn't process this file. Please send it again."
 UNSUPPORTED_TEXT = "I can read receipt photos for now. Statements are coming soon."

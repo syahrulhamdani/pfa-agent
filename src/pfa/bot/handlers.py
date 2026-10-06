@@ -88,6 +88,14 @@ async def handle_signout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await message.reply_text(SIGNED_OUT_TEXT)
 
 
+async def handle_demo_nudge(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Sends a nudge right now, so it can be seen without waiting for a slot."""
+    if not is_authorized(update, context.bot_data["chat_id"]):
+        logger.warning("Ignoring /demo_nudge from unauthorized chat")
+        return
+    await context.bot_data["send_nudge"]()
+
+
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Treats text as a correction if a receipt awaits it, else as casual chat."""
     allowed_chat_id: int = context.bot_data["chat_id"]

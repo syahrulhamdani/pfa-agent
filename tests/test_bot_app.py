@@ -107,3 +107,15 @@ def test_signout_command_is_registered(application):
         for command in h.commands
     }
     assert commands == {"signout"}
+
+
+def test_demo_nudge_command_is_registered(application):
+    from telegram.ext import CommandHandler
+
+    commands = {
+        command
+        for h in _flat(application)
+        if isinstance(h, CommandHandler) and h.callback is handlers.handle_demo_nudge
+        for command in h.commands
+    }
+    assert commands == {"demo_nudge"}

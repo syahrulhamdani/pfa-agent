@@ -94,7 +94,7 @@ Async SQL aggregations for day, week, month, quarter and year: totals, category 
 PRD ref: `prd.md > Web app: transactions and analytics`.
 
 ### Nudge scheduler
-APScheduler async jobs: nudges at the stored slot times and the weekly summary on Monday. Slot learning: with fewer than 20 confirmed transactions, use the six default slots (breakfast, mid-morning, lunch, afternoon, dinner, evening). Otherwise, group the time-of-day of past uploads into six clusters and use their centers. Ignored nudges are not followed up.
+APScheduler async jobs: nudges at the stored slot times and the weekly summary on Monday. Slot learning: with fewer than 20 confirmed transactions, use the six default slots (breakfast, mid-morning, lunch, afternoon, dinner, evening). Otherwise, group the time-of-day of past uploads into six clusters and use their centers. Ignored nudges are not followed up. Learning clusters the local time of confirmation with a deterministic one-dimensional k-means, treating the day as starting at 04:00 so late-night uploads group together; if fewer than six distinct clusters emerge, the rest are filled from the default times, skipping any within an hour of a learned slot. Slots are recomputed at startup and daily at 04:00, and `/demo_nudge` sends one on demand.
 PRD ref: `prd.md > Adaptive nudges`.
 
 ### REST API
