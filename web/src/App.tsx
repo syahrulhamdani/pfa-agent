@@ -13,7 +13,9 @@ import { Settings } from './pages/Settings'
 import { SignIn } from './pages/SignIn'
 import { Transactions } from './pages/Transactions'
 
-// Any 401 means the session ended: re-check it so the gate shows the sign-in screen.
+// A 401 from a data request means the session ended: re-check it so the gate shows
+// the sign-in screen. The session check itself is excluded. Its own 401 is the
+// answer, and invalidating it would refetch it forever.
 function handleError(error: Error) {
   if (error instanceof ApiError && error.status === 401) {
     void queryClient.invalidateQueries({ queryKey: ['auth'] })
@@ -21,7 +23,11 @@ function handleError(error: Error) {
 }
 
 const queryClient: QueryClient = new QueryClient({
-  queryCache: new QueryCache({ onError: handleError }),
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.queryKey[0] !== 'auth') handleError(error)
+    },
+  }),
   mutationCache: new MutationCache({ onError: handleError }),
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } },
 })
