@@ -17,7 +17,15 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     let detail = response.statusText
     try {
       const body = await response.json()
-      if (typeof body.detail === 'string') detail = body.detail
+      if (typeof body.detail === 'string') {
+        detail = body.detail
+      } else if (Array.isArray(body.detail)) {
+        // FastAPI's raw validation shape: a list of { msg } entries.
+        const messages = body.detail
+          .map((entry: { msg?: string }) => entry.msg)
+          .filter(Boolean)
+        if (messages.length > 0) detail = messages.join('; ')
+      }
     } catch {
       // Keep the status text when the body is not JSON.
     }

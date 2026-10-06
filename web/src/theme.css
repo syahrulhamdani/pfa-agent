@@ -259,6 +259,13 @@ button:disabled {
 }
 
 /* Filters */
+.hint {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
 .filters > * + * {
   margin-top: 16px;
 }

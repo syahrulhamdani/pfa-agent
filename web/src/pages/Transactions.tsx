@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { useTransactions } from '../api/hooks'
 import { FilterBar } from '../components/FilterBar'
-import { isPreset, parseFilters, toSearchParams } from '../filters'
+import { filterProblems, isPreset, parseFilters, toSearchParams } from '../filters'
 import type { Filters } from '../filters'
 import { formatAmount, formatDate } from '../format'
 
@@ -9,7 +9,9 @@ export function Transactions() {
   const [params, setParams] = useSearchParams()
   const filters = parseFilters(params)
   const preset = isPreset(filters)
-  const { data, isPending, isError, error } = useTransactions(filters)
+  const valid = filterProblems(filters).length === 0
+  // Nothing is sent while the filters are invalid; the filter bar says what to fix.
+  const { data, isPending, isError, error } = useTransactions(filters, valid)
 
   function changeFilters(next: Filters) {
     setParams(toSearchParams(next), { replace: true })
@@ -32,14 +34,14 @@ export function Transactions() {
       <div className="stack">
         <FilterBar filters={filters} onChange={changeFilters} />
 
-        {isPending && <p className="state">Loading…</p>}
-        {isError && (
+        {valid && isPending && <p className="state">Loading…</p>}
+        {valid && isError && (
           <p className="error" role="alert">
             Could not load transactions: {error.message}
           </p>
         )}
 
-        {data && data.length === 0 && (
+        {valid && data && data.length === 0 && (
           <p className="state">
             {preset
               ? 'Nothing confirmed today yet. Confirm a receipt in Telegram and it will appear.'
@@ -47,7 +49,7 @@ export function Transactions() {
           </p>
         )}
 
-        {data && data.length > 0 && (
+        {valid && data && data.length > 0 && (
           <>
             <div className="stat-row">
               <div className="card">

@@ -1,5 +1,5 @@
 import { useCategories } from '../api/hooks'
-import { isPreset, NO_FILTERS } from '../filters'
+import { filterProblems, isPreset, NO_FILTERS } from '../filters'
 import type { DateBasis, Filters } from '../filters'
 
 interface Props {
@@ -9,6 +9,8 @@ interface Props {
 
 export function FilterBar({ filters, onChange }: Props) {
   const categories = useCategories()
+  const problems = filterProblems(filters)
+  const invalid = problems.length > 0
 
   function set(patch: Partial<Filters>) {
     onChange({ ...filters, ...patch })
@@ -21,9 +23,11 @@ export function FilterBar({ filters, onChange }: Props) {
     set({ categories: selected })
   }
 
-  const rangeInvalid = filters.from && filters.to && filters.from > filters.to
-  const amountInvalid =
-    filters.min && filters.max && Number(filters.min) > Number(filters.max)
+  // Shared by the inputs that can be flagged, so screen readers read the problems.
+  const flagged = {
+    'aria-invalid': invalid || undefined,
+    'aria-describedby': invalid ? 'filter-problems' : undefined,
+  }
 
   return (
     <section className="card filters" aria-label="Filters">
@@ -39,27 +43,34 @@ export function FilterBar({ filters, onChange }: Props) {
           </select>
         </label>
         <label>
-          From
+          From <span className="hint">YYYY-MM-DD</span>
           <input
             type="date"
+            placeholder="YYYY-MM-DD"
             value={filters.from}
             onChange={(e) => set({ from: e.target.value, month: '' })}
+            {...flagged}
           />
         </label>
         <label>
-          To
+          To <span className="hint">YYYY-MM-DD</span>
           <input
             type="date"
+            placeholder="YYYY-MM-DD"
             value={filters.to}
             onChange={(e) => set({ to: e.target.value, month: '' })}
+            {...flagged}
           />
         </label>
         <label>
-          Month
+          Month <span className="hint">YYYY-MM</span>
           <input
             type="month"
+            placeholder="YYYY-MM"
+            title="Use the format YYYY-MM, for example 2026-10"
             value={filters.month}
             onChange={(e) => set({ month: e.target.value, from: '', to: '' })}
+            {...flagged}
           />
         </label>
       </div>
@@ -73,6 +84,7 @@ export function FilterBar({ filters, onChange }: Props) {
             inputMode="decimal"
             value={filters.min}
             onChange={(e) => set({ min: e.target.value })}
+            {...flagged}
           />
         </label>
         <label>
@@ -83,6 +95,7 @@ export function FilterBar({ filters, onChange }: Props) {
             inputMode="decimal"
             value={filters.max}
             onChange={(e) => set({ max: e.target.value })}
+            {...flagged}
           />
         </label>
       </div>
@@ -103,8 +116,13 @@ export function FilterBar({ filters, onChange }: Props) {
         </fieldset>
       )}
 
-      {rangeInvalid && <p className="error">“From” is after “To”.</p>}
-      {amountInvalid && <p className="error">Min amount is above max amount.</p>}
+      {invalid && (
+        <div id="filter-problems" className="error" role="alert">
+          {problems.map((problem) => (
+            <p key={problem}>{problem}</p>
+          ))}
+        </div>
+      )}
 
       <div className="form-row">
         <button type="button" onClick={() => onChange(NO_FILTERS)}>

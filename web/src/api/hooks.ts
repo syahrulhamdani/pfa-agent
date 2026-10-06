@@ -27,7 +27,7 @@ export function useLogout() {
 const LIVE_REFETCH_MS = 5000
 
 // No filters means the "confirmed today" preset; otherwise the filtered search.
-export function useTransactions(filters: Filters) {
+export function useTransactions(filters: Filters, enabled = true) {
   const preset = isPreset(filters)
   const query = toApiQuery(filters)
   return useQuery({
@@ -35,6 +35,7 @@ export function useTransactions(filters: Filters) {
     queryFn: () =>
       api<Transaction[]>(preset ? '/transactions/today' : `/transactions?${query}`),
     refetchInterval: LIVE_REFETCH_MS,
+    enabled,
   })
 }
 
