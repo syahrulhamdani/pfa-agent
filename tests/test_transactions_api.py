@@ -67,11 +67,15 @@ async def test_service_returns_only_todays_confirmed_newest_first(
 
 
 async def test_the_day_follows_the_users_timezone(session_factory, seeded):
-    # 30 minutes before local midnight vs 30 minutes after: different local days.
+    # The rows were confirmed "now". Thirty minutes into the NEXT local day they
+    # are no longer today's, whatever today's date is when the test runs.
+    local_today = seeded.astimezone(JAKARTA).date()
+    next_midnight_utc = local_day_bounds(local_today, JAKARTA)[1]
     async with session_factory() as session:
-        just_after = datetime(2026, 10, 5, 17, 30, tzinfo=UTC)  # 00:30 on Oct 6 in WIB
-        rows = await todays_transactions(session, "Asia/Jakarta", now=just_after)
-    assert rows == []
+        tomorrow = next_midnight_utc + timedelta(minutes=30)
+        assert await todays_transactions(session, "Asia/Jakarta", now=tomorrow) == []
+        today = await todays_transactions(session, "Asia/Jakarta", now=seeded)
+    assert [r.merchant for r in today] == ["Newest today", "Older today"]
 
 
 async def test_endpoint_returns_json(authed_client, seeded):

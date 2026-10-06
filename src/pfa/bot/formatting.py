@@ -1,5 +1,6 @@
 """Telegram message text and buttons for the confirmation step."""
 
+from datetime import datetime
 from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -89,3 +90,11 @@ def saved_text(link: str, ttl_minutes: int) -> str:
 def login_text(link: str, ttl_minutes: int) -> str:
     """Formats the reply to /login."""
     return f"Your sign-in link (valid for {ttl_minutes} minutes, works once): {link}"
+
+
+def signed_in_text(when: datetime) -> str:
+    """Formats the notice sent to Telegram when a sign-in link has been used."""
+    return (
+        f"You signed in to the web app on {when:%d %b} at {when:%H:%M}. "
+        "If this wasn't you, change AUTH_SECRET to end every session."
+    )

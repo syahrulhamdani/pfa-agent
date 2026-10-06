@@ -2,12 +2,23 @@
 
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
+from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pfa.api.deps import get_session, require_session
+from pfa.bot.formatting import signed_in_text
 from pfa.core.config import Settings, get_settings
 from pfa.repository.finance import LoginTokenRepository
 from pfa.services.auth import (
@@ -29,9 +40,31 @@ class ExchangeRequest(BaseModel):
     token: str = Field(min_length=1, max_length=2048)
 
 
+async def notify_sign_in(request: Request, settings: Settings) -> None:
+    """Tells the owner on Telegram that a sign-in link was just used.
+
+    Best effort: a failure here is logged and never affects the sign-in itself.
+    """
+    application = getattr(request.app.state, "telegram", None)
+    if application is None:
+        return
+    try:
+        when = datetime.now(ZoneInfo(settings.timezone))
+        await application.bot.send_message(
+            chat_id=settings.telegram_chat_id, text=signed_in_text(when)
+        )
+    except Exception:
+        logger.exception("Could not send the sign-in notice")
+
+
 @router.post("/exchange")
 async def exchange(
-    body: ExchangeRequest, response: Response, session: Session, settings: Config
+    body: ExchangeRequest,
+    request: Request,
+    response: Response,
+    background: BackgroundTasks,
+    session: Session,
+    settings: Config,
 ) -> dict[str, bool]:
     """Trades a valid, unused login token for a session cookie.
 
@@ -65,6 +98,7 @@ async def exchange(
         secure=settings.auth_cookie_secure,
         path="/",
     )
+    background.add_task(notify_sign_in, request, settings)  # after the response
     return {"authenticated": True}
 
 

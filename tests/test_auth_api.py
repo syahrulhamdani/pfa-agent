@@ -205,3 +205,49 @@ async def test_logout_ends_the_session(anon_client, session_factory, api_setting
     assert (await anon_client.get("/auth/me")).status_code == 200
     assert (await anon_client.post("/auth/logout")).status_code == 200
     assert (await anon_client.get("/auth/me")).status_code == 401
+
+
+# --- the owner is told on Telegram when a link is used ---
+
+
+@pytest.fixture
+def fake_bot(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    bot = SimpleNamespace(send_message=AsyncMock())
+    monkeypatch.setattr(app.state, "telegram", SimpleNamespace(bot=bot), raising=False)
+    return bot
+
+
+async def test_successful_sign_in_notifies_the_owner_on_telegram(
+    anon_client, session_factory, api_settings, fake_bot
+):
+    token = await fresh_token(session_factory, api_settings)
+    assert (await exchange(anon_client, token)).status_code == 200
+    fake_bot.send_message.assert_awaited_once()
+    kwargs = fake_bot.send_message.await_args.kwargs
+    assert kwargs["chat_id"] == api_settings.telegram_chat_id
+    assert "signed in to the web app" in kwargs["text"]
+    assert token not in kwargs["text"]  # the notice never repeats the credential
+
+
+async def test_rejected_links_do_not_notify(
+    anon_client, session_factory, api_settings, fake_bot
+):
+    token = await fresh_token(session_factory, api_settings)
+    await exchange(anon_client, token)
+    fake_bot.send_message.reset_mock()
+    assert (await exchange(anon_client, token)).status_code == 401  # reused
+    assert (await exchange(anon_client, "garbage")).status_code == 401
+    fake_bot.send_message.assert_not_called()
+
+
+async def test_a_failing_notice_never_blocks_sign_in(
+    anon_client, session_factory, api_settings, fake_bot
+):
+    fake_bot.send_message.side_effect = RuntimeError("telegram down")
+    token = await fresh_token(session_factory, api_settings)
+    response = await exchange(anon_client, token)
+    assert response.status_code == 200
+    assert (await anon_client.get("/auth/me")).status_code == 200
