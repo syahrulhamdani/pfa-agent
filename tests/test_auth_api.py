@@ -228,7 +228,8 @@ async def test_successful_sign_in_notifies_the_owner_on_telegram(
     fake_bot.send_message.assert_awaited_once()
     kwargs = fake_bot.send_message.await_args.kwargs
     assert kwargs["chat_id"] == api_settings.telegram_chat_id
-    assert "signed in to the web app" in kwargs["text"]
+    assert kwargs["text"].startswith("Signed in to the web app on ")
+    assert "AUTH_SECRET" not in kwargs["text"]  # no internals in user-facing text
     assert token not in kwargs["text"]  # the notice never repeats the credential
 
 
