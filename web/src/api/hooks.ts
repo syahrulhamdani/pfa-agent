@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import { isPreset, toApiQuery } from '../filters'
 import type { Filters } from '../filters'
-import type { Bank, Card, CategoryChanged, Transaction } from './types'
+import type { Bank, Card, Transaction, TransactionsChanged } from './types'
 
 export function useSession() {
   return useQuery({
@@ -76,12 +76,16 @@ export function useCreateCard() {
   })
 }
 
-// Moves saved transactions to another category; the lists then reload.
-export function useChangeCategory() {
+// Changes the category and/or direction of saved transactions; the lists then reload.
+export function useChangeTransactions() {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: (input: { ids: number[]; category: string }) =>
-      api<CategoryChanged>('/transactions', {
+    mutationFn: (input: {
+      ids: number[]
+      category?: string
+      direction?: 'in' | 'out'
+    }) =>
+      api<TransactionsChanged>('/transactions', {
         method: 'PATCH',
         body: JSON.stringify(input),
       }),

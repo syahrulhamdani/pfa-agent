@@ -87,34 +87,47 @@ async def search_transactions(
     return _to_read(rows)
 
 
-async def change_category(
-    session: AsyncSession, ids: list[int], category_name: str
+async def change_transactions(
+    session: AsyncSession,
+    ids: list[int],
+    category_name: str | None = None,
+    direction: Direction | None = None,
 ) -> int:
-    """Moves saved transactions to another category.
+    """Changes the category and/or the direction of saved transactions.
 
     All or nothing: if the category or any transaction is unknown (or not saved
-    yet), nothing changes. Changing a past transaction's category also changes how
-    it counts in any comparison made later, such as against a budget.
+    yet), nothing changes. Changing a past transaction also changes how it counts in
+    any comparison made later, such as against a budget. The amount is never touched:
+    it stays positive, and the direction says which way the money moved.
 
     Args:
         session: Database session.
-        ids: The transactions to move. Duplicates are ignored.
-        category_name: The target category, matched ignoring case.
+        ids: The transactions to change. Duplicates are ignored.
+        category_name: The target category, matched ignoring case, or None to leave
+            the category alone.
+        direction: Whether the money came in or went out, or None to leave it alone.
 
     Returns:
-        How many transactions were moved.
+        How many transactions were changed.
 
     Raises:
         NotFoundError: If the category does not exist, or any id is not a saved
             transaction.
     """
     wanted = sorted(set(ids))
-    category_id = await CategoryRepository(session).get_id_by_name(category_name)
-    if category_id is None:
-        raise NotFoundError(f"There is no category called “{category_name}”.")
+    values: dict = {}
+    if category_name is not None:
+        category_id = await CategoryRepository(session).get_id_by_name(category_name)
+        if category_id is None:
+            raise NotFoundError(f"There is no category called “{category_name}”.")
+        values["category_id"] = category_id
+    if direction is not None:
+        values["direction"] = direction.value
+    if not values:
+        raise NotFoundError("Choose a category, a direction, or both.")
     repo = TransactionRepository(session)
     missing = set(wanted) - await repo.confirmed_ids(wanted)
     if missing:
         shown = ", ".join(str(i) for i in sorted(missing)[:5])
         raise NotFoundError(f"Not a saved transaction: {shown}.")
-    return await repo.set_category(wanted, category_id)
+    return await repo.update_confirmed(wanted, **values)

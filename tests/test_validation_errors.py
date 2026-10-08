@@ -116,3 +116,21 @@ def test_an_invalid_list_item_is_reported_by_its_field_not_its_position():
 
 def test_a_location_of_only_numbers_still_reads_sensibly():
     assert describe_validation_error({"loc": (0,), "msg": "Bad"}) == "Request: Bad"
+
+
+def test_a_problem_with_the_whole_request_has_no_field_label():
+    error = {
+        "loc": ("body",),
+        "msg": "Value error, choose a category, a direction, or both",
+    }
+    assert describe_validation_error(error) == "Choose a category, a direction, or both"
+
+
+def test_a_field_level_problem_is_still_labelled():
+    error = {
+        "loc": ("body", "category"),
+        "msg": "String should have at least 1 character",
+    }
+    assert (
+        describe_validation_error(error) == "Category: choose a category from the list"
+    )

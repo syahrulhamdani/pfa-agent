@@ -78,14 +78,21 @@ class TransactionFilter(BaseModel):
         return self
 
 
-class CategoryChange(BaseModel):
-    """A request to put saved transactions into another category."""
+class TransactionChange(BaseModel):
+    """A request to change saved transactions: their category, direction, or both."""
 
     ids: list[int] = Field(min_length=1, max_length=500)
-    category: str = Field(min_length=1, max_length=50)
+    category: str | None = Field(None, min_length=1, max_length=50)
+    direction: Direction | None = None
+
+    @model_validator(mode="after")
+    def _something_to_change(self) -> "TransactionChange":
+        if self.category is None and self.direction is None:
+            raise ValueError("choose a category, a direction, or both")
+        return self
 
 
-class CategoryChanged(BaseModel):
-    """How many transactions were moved to the new category."""
+class TransactionsChanged(BaseModel):
+    """How many transactions were changed."""
 
     updated: int

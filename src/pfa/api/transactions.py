@@ -15,14 +15,14 @@ from pfa.core.exceptions import NotFoundError
 from pfa.models.finance import Direction
 from pfa.repository.finance import CategoryRepository
 from pfa.schemas.transactions import (
-    CategoryChange,
-    CategoryChanged,
     DateBasis,
+    TransactionChange,
     TransactionFilter,
     TransactionRead,
+    TransactionsChanged,
 )
 from pfa.services.transactions import (
-    change_category,
+    change_transactions,
     search_transactions,
     todays_transactions,
 )
@@ -85,14 +85,16 @@ async def list_transactions(
     return await search_transactions(session, settings.timezone, flt)
 
 
-@router.patch("/transactions", response_model=CategoryChanged)
-async def change_transaction_category(body: CategoryChange, session: Session):
-    """Moves one or many saved transactions to another category."""
+@router.patch("/transactions", response_model=TransactionsChanged)
+async def change_saved_transactions(body: TransactionChange, session: Session):
+    """Changes the category and/or direction of one or many saved transactions."""
     try:
-        updated = await change_category(session, body.ids, body.category)
+        updated = await change_transactions(
+            session, body.ids, body.category, body.direction
+        )
     except NotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, exc.message) from None
-    return CategoryChanged(updated=updated)
+    return TransactionsChanged(updated=updated)
 
 
 @router.get("/categories", response_model=list[str])

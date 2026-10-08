@@ -26,6 +26,6 @@ export interface Card {
   last4: string | null
 }
 
-export interface CategoryChanged {
+export interface TransactionsChanged {
   updated: number
 }

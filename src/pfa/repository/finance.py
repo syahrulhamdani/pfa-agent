@@ -348,15 +348,15 @@ class TransactionRepository:
         )
         return set(result)
 
-    async def set_category(self, ids: list[int], category_id: int) -> int:
-        """Moves confirmed transactions to a category; returns how many changed."""
+    async def update_confirmed(self, ids: list[int], **values: Any) -> int:
+        """Sets the given fields on confirmed transactions; returns how many changed."""
         result = await self._session.execute(
             update(Transaction)
             .where(
                 Transaction.id.in_(ids),
                 Transaction.status == TransactionStatus.CONFIRMED.value,
             )
-            .values(category_id=category_id)
+            .values(**values)
         )
         await self._session.commit()
         return result.rowcount

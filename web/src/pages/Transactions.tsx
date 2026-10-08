@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useCategories, useChangeCategory, useTransactions } from '../api/hooks'
+import { useCategories, useChangeTransactions, useTransactions } from '../api/hooks'
 import { FilterBar } from '../components/FilterBar'
 import { filterProblems, isPreset, parseFilters, toSearchParams } from '../filters'
 import type { Filters } from '../filters'
@@ -15,10 +15,11 @@ export function Transactions() {
   // Nothing is sent while the filters are invalid; the filter bar says what to fix.
   const { data, isPending, isError, error } = useTransactions(filters, valid)
   const categories = useCategories()
-  const changeCategory = useChangeCategory()
+  const change = useChangeTransactions()
 
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [bulkCategory, setBulkCategory] = useState('')
+  const [bulkDirection, setBulkDirection] = useState<'' | 'in' | 'out'>('')
   const [notice, setNotice] = useState<string | null>(null)
 
   function changeFilters(next: Filters) {
@@ -41,16 +42,22 @@ export function Transactions() {
     setSelected(allSelected ? new Set() : new Set(visibleIds))
   }
 
-  function moveTo(ids: number[], category: string) {
+  // One request changes the category, the direction, or both, for one row or many.
+  function apply(ids: number[], changes: { category?: string; direction?: 'in' | 'out' }) {
     setNotice(null)
-    changeCategory.mutate(
-      { ids, category },
+    change.mutate(
+      { ids, ...changes },
       {
         onSuccess: (result) => {
           const noun = result.updated === 1 ? 'transaction' : 'transactions'
-          setNotice(`Moved ${result.updated} ${noun} to ${category}.`)
+          const what = [
+            changes.category && `category ${changes.category}`,
+            changes.direction && `marked as money ${changes.direction}`,
+          ].filter(Boolean)
+          setNotice(`Updated ${result.updated} ${noun}: ${what.join(', ')}.`)
           setSelected(new Set())
           setBulkCategory('')
+          setBulkDirection('')
         },
       },
     )
@@ -95,7 +102,9 @@ export function Transactions() {
             <div className="stat-row">
               <div className="card">
                 <div className="stat-label">Money out</div>
-                <div className="stat-value">{formatAmount(String(moneyOut))}</div>
+                <div className="stat-value amount-out">
+                  {formatAmount(String(moneyOut))}
+                </div>
               </div>
               <div className="card">
                 <div className="stat-label">Money in</div>
@@ -132,9 +141,9 @@ export function Transactions() {
                 {notice}
               </p>
             )}
-            {changeCategory.isError && (
+            {change.isError && (
               <p className="error" role="alert">
-                Could not change the category: {changeCategory.error.message}
+                Could not save the change: {change.error.message}
               </p>
             )}
 
@@ -147,7 +156,7 @@ export function Transactions() {
                     value={bulkCategory}
                     onChange={(e) => setBulkCategory(e.target.value)}
                   >
-                    <option value="">Choose a category</option>
+                    <option value="">Keep category</option>
                     {categories.data?.map((name) => (
                       <option key={name} value={name}>
                         {name}
@@ -155,12 +164,30 @@ export function Transactions() {
                     ))}
                   </select>
                 </label>
+                <label>
+                  Mark as
+                  <select
+                    value={bulkDirection}
+                    onChange={(e) =>
+                      setBulkDirection(e.target.value as '' | 'in' | 'out')
+                    }
+                  >
+                    <option value="">Keep money in/out</option>
+                    <option value="out">↑ Money out</option>
+                    <option value="in">↓ Money in</option>
+                  </select>
+                </label>
                 <button
                   type="button"
-                  disabled={!bulkCategory || changeCategory.isPending}
-                  onClick={() => moveTo(selectedIds, bulkCategory)}
+                  disabled={(!bulkCategory && !bulkDirection) || change.isPending}
+                  onClick={() =>
+                    apply(selectedIds, {
+                      ...(bulkCategory && { category: bulkCategory }),
+                      ...(bulkDirection && { direction: bulkDirection }),
+                    })
+                  }
                 >
-                  Change category
+                  Apply to selected
                 </button>
                 <button
                   type="button"
@@ -197,7 +224,7 @@ export function Transactions() {
                 </thead>
                 <tbody>
                   {data.map((tx) => (
-                    <tr key={tx.id}>
+                    <tr key={tx.id} className={`row-${tx.direction}`}>
                       <td className="check-col">
                         <input
                           type="checkbox"
@@ -216,17 +243,26 @@ export function Transactions() {
                         )}
                       </td>
                       <td>
-                        <span className={`badge badge-${tx.direction}`}>
-                          {tx.direction === 'in' ? 'In' : 'Out'}
-                        </span>
+                        <select
+                          className={`badge-select badge-${tx.direction}`}
+                          aria-label={`Money in or out for ${tx.merchant ?? 'transaction'}`}
+                          value={tx.direction}
+                          disabled={change.isPending}
+                          onChange={(e) =>
+                            apply([tx.id], { direction: e.target.value as 'in' | 'out' })
+                          }
+                        >
+                          <option value="out">↑ Money out</option>
+                          <option value="in">↓ Money in</option>
+                        </select>
                       </td>
                       <td>
                         <select
                           className="table-select"
                           aria-label={`Category for ${tx.merchant ?? 'transaction'}`}
                           value={tx.category ?? ''}
-                          disabled={changeCategory.isPending}
-                          onChange={(e) => moveTo([tx.id], e.target.value)}
+                          disabled={change.isPending}
+                          onChange={(e) => apply([tx.id], { category: e.target.value })}
                         >
                           {tx.category === null && <option value="">No category</option>}
                           {categories.data?.map((name) => (

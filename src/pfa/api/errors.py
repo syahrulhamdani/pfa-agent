@@ -42,14 +42,23 @@ FIELD_HINTS = {
 }
 
 
+_PLACES = {"body", "query", "path", "header", "cookie"}
+
+
 def describe_validation_error(error: dict) -> str:
     """Turns one validation error into a sentence a person can act on."""
     loc = error.get("loc") or ()
+    message = str(error.get("msg", "is not valid")).removeprefix("Value error, ")
+    # A problem with the request as a whole ("choose a category or a direction") has
+    # no field to name, only the place it was found in.
+    named = [str(p) for p in loc if not isinstance(p, int)]
+    if named and all(p in _PLACES for p in named):
+        return message[:1].upper() + message[1:]
     # The field is the last named part of the location; a trailing number is just a
     # position in a list ("ids", 0), which means nothing to the person reading it.
     field = next((str(p) for p in reversed(loc) if not isinstance(p, int)), "request")
     label = FIELD_LABELS.get(field, field.replace("_", " ").capitalize())
-    return f"{label}: {FIELD_HINTS.get(field) or error.get('msg', 'is not valid')}"
+    return f"{label}: {FIELD_HINTS.get(field) or message}"
 
 
 async def validation_error_handler(

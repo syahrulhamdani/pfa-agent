@@ -15,6 +15,13 @@
   --color-accent-strong: #26890d; /* readable on white, for links and figures */
   --color-danger: #b3261e;
 
+  /* Money in and out. Each text colour is at least 4.5:1 on its own background. */
+  --color-in: #1b6e09;
+  --color-in-bg: #dff0c8;
+  --color-in-row: #f1f8e6;
+  --color-out: #a8201a;
+  --color-out-bg: #fbe1df;
+
   --font-sans: 'Open Sans', -apple-system, 'Segoe UI', system-ui, Roboto, sans-serif;
   --radius: 4px;
   --space: 16px;
@@ -347,27 +354,75 @@ button:disabled {
   text-decoration: underline;
 }
 
-/* Money in and out: colour is never the only signal (there is also a sign and a label). */
+/*
+ * Money in and out. Several cues say the same thing, so no single one has to be
+ * noticed: an arrow and a word in the badge, a sign on the amount, a coloured stripe
+ * on the row's left edge, and a light tint on money-in rows. Colour is never alone.
+ */
 .amount-in {
-  color: var(--color-accent-strong);
+  color: var(--color-in);
+}
+
+.amount-out {
+  color: var(--color-out);
 }
 
 .amount-negative {
-  color: var(--color-danger);
+  color: var(--color-out);
+}
+
+td.amount-in,
+td.amount-out {
+  font-weight: 700;
 }
 
 .badge {
-  display: inline-block;
-  padding: 1px 8px;
-  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border: 1px solid transparent;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .badge-in {
-  border-color: var(--color-accent);
-  color: var(--color-accent-strong);
+  background-color: var(--color-in-bg); /* not the shorthand: it would erase a select's arrow */
+  border-color: var(--color-in);
+  color: var(--color-in);
+}
+
+.badge-out {
+  background-color: var(--color-out-bg);
+  border-color: var(--color-out);
+  color: var(--color-out);
+}
+
+/* The Type dropdown on each row looks like the badge but can be changed. */
+.badge-select {
+  min-width: 0;
+  height: 30px;
+  padding: 0 26px 0 12px;
+  border-radius: 999px;
+  border-width: 1px;
+  border-style: solid;
+  font-size: 13px;
+  font-weight: 700;
+  background-position: right 8px center;
+}
+
+tr.row-in {
+  background: var(--color-in-row);
+}
+
+tr.row-in > td:first-child {
+  box-shadow: inset 4px 0 0 var(--color-in);
+}
+
+tr.row-out > td:first-child {
+  box-shadow: inset 4px 0 0 var(--color-out);
 }
 
 /* Editing categories in the list */

@@ -1,4 +1,4 @@
-"""Boundary: saved transactions can be moved to another category, all or nothing."""
+"""Boundary: saved transactions can change category and direction, all or nothing."""
 
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -46,8 +46,13 @@ async def categories_of(client) -> dict[str, tuple[str, bool, str]]:
     }
 
 
-async def patch(client, ids, category):
-    return await client.patch("/transactions", json={"ids": ids, "category": category})
+async def patch(client, ids, category=None, direction=None):
+    body = {"ids": ids}
+    if category is not None:
+        body["category"] = category
+    if direction is not None:
+        body["direction"] = direction
+    return await client.patch("/transactions", json=body)
 
 
 async def test_one_transaction_can_be_moved_to_another_category(authed_client, seeded):
@@ -120,7 +125,7 @@ async def _category_id(session_factory, name):
             {"ids": list(range(1, 502)), "category": "Dining"},
             "Selection: choose between",
         ),
-        ({"ids": [1]}, "Category: choose a category from the list"),
+        ({"ids": [1]}, "Choose a category, a direction, or both"),
         ({"ids": [1], "category": ""}, "Category: choose a category from the list"),
         ({"ids": ["x"], "category": "Dining"}, "Selection:"),
     ],
@@ -173,3 +178,88 @@ async def test_the_transfer_flag_ignores_case_in_the_category_name(
     assert other.is_transfer is False
     (nothing,) = _to_read([(Row, None, None)])
     assert nothing.is_transfer is False
+
+
+# --- changing the direction: money in or out, e.g. a move between pockets ---
+
+
+async def amounts_of(client) -> dict[str, str]:
+    return {
+        r["merchant"]: r["amount"] for r in (await client.get("/transactions")).json()
+    }
+
+
+async def test_the_direction_alone_can_be_changed(authed_client, seeded):
+    before = await amounts_of(authed_client)
+    response = await patch(authed_client, [seeded["A"]], direction="in")
+    assert response.status_code == 200
+    assert response.json() == {"updated": 1}
+    now = await categories_of(authed_client)
+    assert now["A"] == ("Groceries", False, "in")  # the category is left alone
+    assert (
+        await amounts_of(authed_client) == before
+    )  # amounts stay positive and as were
+
+
+async def test_direction_and_category_can_change_together(authed_client, seeded):
+    await patch(authed_client, [seeded["A"], seeded["B"]], "Transfer", "in")
+    now = await categories_of(authed_client)
+    assert now["A"] == ("Transfer", True, "in")
+    assert now["B"] == ("Transfer", True, "in")
+    assert now["C"] == ("Groceries", False, "in")  # untouched
+
+
+async def test_several_directions_change_together(authed_client, seeded):
+    response = await patch(
+        authed_client, [seeded["A"], seeded["B"], seeded["A"]], direction="in"
+    )
+    assert response.json() == {"updated": 2}
+    assert [d for _, _, d in (await categories_of(authed_client)).values()].count(
+        "in"
+    ) == 3
+
+
+async def test_flipping_the_direction_of_a_transfer_keeps_it_a_transfer(
+    authed_client, seeded
+):
+    await patch(authed_client, [seeded["A"]], "Transfer", "out")
+    await patch(authed_client, [seeded["A"]], direction="in")
+    assert (await categories_of(authed_client))["A"] == ("Transfer", True, "in")
+
+
+async def test_the_direction_filter_follows_the_change(authed_client, seeded):
+    await patch(authed_client, [seeded["A"]], direction="in")
+    rows = (await authed_client.get("/transactions", params={"direction": "in"})).json()
+    assert {r["merchant"] for r in rows} == {"A", "C"}
+
+
+async def test_nothing_to_change_is_explained_in_plain_words(authed_client, seeded):
+    response = await authed_client.patch("/transactions", json={"ids": [seeded["A"]]})
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Choose a category, a direction, or both"
+
+
+async def test_a_bad_direction_is_explained(authed_client, seeded):
+    response = await patch(authed_client, [seeded["A"]], direction="sideways")
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Type: choose Money out or Money in"
+
+
+async def test_a_bad_category_stops_the_direction_change_too(authed_client, seeded):
+    response = await patch(authed_client, [seeded["A"]], "Yachts", "in")
+    assert response.status_code == 404
+    assert (await categories_of(authed_client))["A"] == ("Groceries", False, "out")
+
+
+async def test_an_unknown_id_stops_a_direction_change_for_all(authed_client, seeded):
+    response = await patch(authed_client, [seeded["A"], 987654], direction="in")
+    assert response.status_code == 404
+    assert (await categories_of(authed_client))["A"][2] == "out"
+
+
+async def test_a_transaction_not_saved_yet_cannot_change_direction(
+    authed_client, seeded
+):
+    assert (
+        await patch(authed_client, [seeded["Pending"]], direction="in")
+    ).status_code == 404
