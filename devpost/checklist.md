@@ -59,7 +59,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Send `/demo_nudge` and read the message. Say whether the wording fits you, and whether the six default times match your day.
   Commit: `Add adaptive nudge slots and scheduler`
 
-- [ ] **6. You can upload a statement (PDF, CSV or Excel) and confirm it in one go**
+- [x] **6. You can upload a statement (PDF, CSV or Excel) and confirm it in one go**
   Becomes usable: Upload a statement file, get a summary (count, highest, lowest, total), and confirm every transaction with one tap.
   Why now: Same graph as receipts with a new parse branch, so the riskiest wiring is already proven. It adds real volume for analytics before we build them.
   PRD ref: `prd.md > Upload and extraction`, `prd.md > Confirmation and data fields`
@@ -139,3 +139,10 @@ Activity mode:
 - LangSmith traces now redact receipt images (base64 blocks, data URLs and raw bytes) before upload, through a global client anonymizer — the learner asked for it for privacy; the live Gemini request is untouched.
 - Rejected requests now answer in plain words (which field, the expected format, an example), and the Transactions page checks month, date and amount formats itself before asking the server — some browsers show month and date pickers as plain text boxes, and the raw validation error was hidden behind "Unprocessable Entity".
 - Nudge slots are re-learned daily at 04:00 as well as at startup, and the clustering day starts at 04:00 to handle times around midnight — details the spec left open; the learner chose the six default times.
+- Statements leave out unreadable lines (counted, never guessed) and lines already confirmed on the same card in the same direction — the spec said only that a statement is confirmed in one go with a summary, and overlapping statements would otherwise double-count.
+- `ImageStash` became `FileStash` because it now holds statements as well as receipt images; files still live in memory only.
+- `parse_amount` now rejects NaN and infinity and rounds half up — a NaN amount passed validation and would have been saved.
+- LangSmith masking now also covers PDF, CSV and Excel statement contents, the transactions the model read from them, and card hints — the learner asked that all statement formats be masked, and the first version only covered images.
+- Domain value objects that had grown inside service modules (`Spend`, `ParsedRow`, `NormalizedRows`, `StatementSummary`, `Slot`, `SlotSource`, `TokenType`) moved to their own modules under `schemas/` as frozen pydantic models (they are not database tables, so not `models/`), and `StatementError` and `AuthError` moved to `core/exceptions.py` — the learner pointed out that they sat beside the logic instead of in the layout the project follows. Constructors now take keyword arguments; behaviour is otherwise unchanged.
+- Every transaction now has a direction (money out or money in), and statements keep credits as money in instead of leaving them out; the summary, duplicate check, API, filters and web page all separate the two — the learner found after testing a statement that dropping income was a missing major feature. Existing transactions default to money out; income categories (Salary, Refund, Transfer, Interest) were added to the category list. Budgets and the dashboard will count money out only.
+- The learner kept the strict duplicate rule (same direction, date, amount and merchant ignoring case) for statement lines.

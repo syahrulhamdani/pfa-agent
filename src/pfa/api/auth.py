@@ -20,11 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pfa.api.deps import get_session, require_session
 from pfa.bot.formatting import signed_in_text
 from pfa.core.config import Settings, get_settings
+from pfa.core.exceptions import AuthError
 from pfa.repository.finance import AuthStateRepository, LoginTokenRepository
+from pfa.schemas.auth import TokenType
 from pfa.services.auth import (
     SESSION_COOKIE,
-    AuthError,
-    TokenType,
     create_token,
     decode_token,
     session_is_revoked,

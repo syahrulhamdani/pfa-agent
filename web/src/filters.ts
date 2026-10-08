@@ -1,5 +1,6 @@
 // Transaction filters, kept in the URL so a filtered view survives a refresh.
 export type DateBasis = 'occurred' | 'confirmed'
+export type DirectionFilter = '' | 'in' | 'out' // '' means both
 
 export interface Filters {
   basis: DateBasis
@@ -8,6 +9,7 @@ export interface Filters {
   month: string
   min: string
   max: string
+  direction: DirectionFilter
   categories: string[]
 }
 
@@ -18,7 +20,12 @@ export const NO_FILTERS: Filters = {
   month: '',
   min: '',
   max: '',
+  direction: '',
   categories: [],
+}
+
+function toDirection(value: string | null): DirectionFilter {
+  return value === 'in' || value === 'out' ? value : ''
 }
 
 export function parseFilters(params: URLSearchParams): Filters {
@@ -29,6 +36,7 @@ export function parseFilters(params: URLSearchParams): Filters {
     month: params.get('month') ?? '',
     min: params.get('min') ?? '',
     max: params.get('max') ?? '',
+    direction: toDirection(params.get('direction')),
     categories: params.getAll('category'),
   }
 }
@@ -41,6 +49,7 @@ export function toSearchParams(filters: Filters): URLSearchParams {
   if (filters.month) params.set('month', filters.month)
   if (filters.min) params.set('min', filters.min)
   if (filters.max) params.set('max', filters.max)
+  if (filters.direction) params.set('direction', filters.direction)
   filters.categories.forEach((name) => params.append('category', name))
   return params
 }
@@ -54,6 +63,7 @@ export function isPreset(filters: Filters): boolean {
     !filters.month &&
     !filters.min &&
     !filters.max &&
+    !filters.direction &&
     filters.categories.length === 0
   )
 }
@@ -67,6 +77,7 @@ export function toApiQuery(filters: Filters): string {
   if (filters.month) params.set('month', filters.month)
   if (filters.min) params.set('min_amount', filters.min)
   if (filters.max) params.set('max_amount', filters.max)
+  if (filters.direction) params.set('direction', filters.direction)
   filters.categories.forEach((name) => params.append('category', name))
   return params.toString()
 }

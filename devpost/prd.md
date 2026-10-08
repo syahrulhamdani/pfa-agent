@@ -29,7 +29,7 @@ Two surfaces, one product.
 **Telegram chat** (primary interface): a single conversation with pfa. It handles uploads, confirmations, casual questions and every proactive message (nudges, Monday summary).
 
 **Web app** (reached from links in Telegram), with navigation from the landing screen to:
-- **Today's transactions** (landing screen): the day's confirmed transactions by default. The list can be filtered by receipt date or confirmation date (range or month), amount range and categories; clearing the filters returns to today.
+- **Today's transactions** (landing screen): the day's confirmed transactions by default, with money out, money in and the net shown apart. The list can be filtered by receipt date or confirmation date (range or month), amount range categories and direction (money in, money out or both); clearing the filters returns to today.
 - **Dashboard / analytics**: aggregated data for past periods, category stats, the weekly summary, and quarterly and yearly insights.
 - **Budgets**: per-category monthly budgets, editable, with version history.
 - **Goals**: savings goals with target amount and date.
@@ -50,6 +50,9 @@ Source: `scope.md > The POC Boundary`.
 - Replies immediately that the upload will be processed; does not block the chat while it works.
 - Replies to the original upload message with the result when done.
 - Statements contain many transactions; each is extracted into the same fields.
+- A statement is read in one go and confirmed with one tap. Before confirming, pfa shows how many transactions it found, their total, the highest and the lowest amount, and which card it belongs to (asking if it cannot tell).
+- Every line is saved as money out (an expense) or money in (income, a refund, interest, a transfer in), and the summary shows both apart with the net between them. A line whose merchant, amount or date cannot be read is left out and counted, never guessed. A line that matches a transaction already confirmed on the same card (same direction, date, amount and merchant) is skipped, so uploading overlapping statements does not double-count.
+- Limits: PDF, CSV or Excel (.xlsx, not the old .xls); up to 10 MB and 500 rows per spreadsheet.
 
 - As the user, I want to send a receipt and keep chatting so that I never wait on the agent.
   - [ ] Sending a receipt gets an immediate "processing" reply.
@@ -60,7 +63,7 @@ Source: `scope.md > The POC Boundary`.
 
 ### Confirmation and data fields
 - Every extracted transaction requires user confirmation before it is saved.
-- Required fields: merchant, amount, date, category, account/card.
+- Required fields: merchant, amount, date, category, account/card. Every transaction also records its direction: money out (an expense, the default and always the case for receipts) or money in (income). Amounts are always positive.
 - Optional field: description, prefilled by the agent from the content of the data.
 - Account/card: used if it can be inferred from the receipt; otherwise pfa asks the user to provide it.
 
@@ -174,7 +177,7 @@ Source: `scope.md > The Unique Kernel`.
 ## Open Questions
 
 - **Accounts and cards management** — where does the user add a bank account and its cards (web app, chat, or created on first mention)? Resolve before `4-spec`.
-- **Statement confirmation** — a statement can hold dozens of transactions. Confirm each one, or in a batch? Resolve before `4-spec`.
+- **Statement confirmation** — resolved: a statement is confirmed in one go, with a summary.
 - **Ignored vs. "no transactions"** — earlier the idea was to confirm "nothing spent"; now the decision is to ignore the nudge. Assumed: ignoring counts as no data, not as a recorded zero. Confirm.
 - **Quarterly and yearly insights** — assumed to live on the dashboard. Can wait for the build.
 - **Accent color and font** — to be confirmed from the reference site. Can wait for `4-spec`.

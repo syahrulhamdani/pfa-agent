@@ -7,6 +7,8 @@ export interface Transaction {
   category: string | null
   card: string | null
   description: string | null
+  // Which way the money moved: out is an expense, in is income. Amounts are positive.
+  direction: 'in' | 'out'
   confirmed_at: string | null
 }
 

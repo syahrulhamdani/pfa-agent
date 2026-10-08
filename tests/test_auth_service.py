@@ -5,12 +5,9 @@ from datetime import UTC, datetime, timedelta
 import jwt
 import pytest
 
-from pfa.services.auth import (
-    AuthError,
-    TokenType,
-    create_token,
-    decode_token,
-)
+from pfa.core.exceptions import AuthError
+from pfa.schemas.auth import TokenType
+from pfa.services.auth import create_token, decode_token
 
 SECRET = "unit-test-secret-" + "k" * 32
 TEN_MIN = timedelta(minutes=10)

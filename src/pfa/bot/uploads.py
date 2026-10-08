@@ -14,15 +14,18 @@ from pfa.bot.formatting import (
     FAILED_TEXT,
     PROCESSING_TEXT,
     format_review,
+    format_statement_review,
     review_keyboard,
     saved_text,
 )
 from pfa.core.config import Settings
+from pfa.core.exceptions import StatementError
 from pfa.graphs.extraction import NOT_A_CORRECTION, pending_interrupt, thread_config
 from pfa.models import UploadStatus
 from pfa.repository.finance import UploadRepository
 from pfa.services.auth import LinkIssuer
-from pfa.services.images import ImageStash
+from pfa.services.files import FileStash
+from pfa.services.statements import MAX_BYTES
 
 
 class UploadCoordinator:
@@ -36,7 +39,7 @@ class UploadCoordinator:
         session_factory: async_sessionmaker[AsyncSession],
         settings: Settings,
         issue_link: LinkIssuer,
-        images: ImageStash,
+        files: FileStash,
     ) -> None:
         """Wires the coordinator to Telegram, the graph and the database."""
         self._bot = bot
@@ -44,27 +47,48 @@ class UploadCoordinator:
         self._session_factory = session_factory
         self._settings = settings
         self._issue_link = issue_link
-        self._images = images
+        self._files = files
         self._tasks: set[asyncio.Task] = set()
         self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def receive(
-        self, message: Message, file_id: str, filename: str, mime_type: str
+        self,
+        message: Message,
+        file_id: str,
+        filename: str,
+        mime_type: str,
+        kind: str = "image",
     ) -> None:
-        """Saves an upload, acknowledges it, and starts extraction in the background."""
+        """Saves an upload, acknowledges it, and starts extraction in the background.
+
+        Args:
+            message: The Telegram message that carried the file.
+            file_id: Telegram's id for the file, used with `getFile`.
+            filename: The file's name, kept for the record.
+            mime_type: The file's MIME type.
+            kind: "image" for a receipt or "statement" for a statement file.
+
+        Raises:
+            StatementError: If a statement is too large to read.
+        """
         logger.info("Downloading {} from Telegram into memory", filename)
         telegram_file = await self._bot.get_file(file_id)
         # Kept in memory only: a receipt is never written to disk or the database.
         content = bytes(await telegram_file.download_as_bytearray())
         logger.info("Downloaded {} bytes (held in memory only)", len(content))
+        if kind == "statement" and len(content) > MAX_BYTES:
+            raise StatementError(
+                f"This file is larger than {MAX_BYTES // (1024 * 1024)} MB. "
+                "Please split it into smaller files."
+            )
         async with self._session_factory() as session:
             upload = await UploadRepository(session).add(
                 telegram_message_id=message.message_id,
-                kind="image",
+                kind=kind,
                 filename=filename,
                 mime_type=mime_type,
             )
-        self._images.put(upload.id, content)
+        self._files.put(upload.id, content)
         logger.info("Upload {} recorded; starting extraction", upload.id)
         await message.reply_text(PROCESSING_TEXT)
         task = asyncio.create_task(self._extract(upload.id, message.message_id))
@@ -101,16 +125,20 @@ class UploadCoordinator:
     async def _extract(self, upload_id: int, message_id: int) -> None:
         try:
             await self._run(upload_id, {"upload_id": upload_id})
+        except StatementError as exc:
+            logger.info("Statement upload {} rejected: {}", upload_id, exc.message)
+            await self._fail(upload_id, message_id, exc.message)
         except Exception:
             logger.exception("Extraction failed for upload {}", upload_id)
-            async with self._session_factory() as session:
-                await UploadRepository(session).set_status(
-                    upload_id, UploadStatus.FAILED
-                )
-            await self._send(FAILED_TEXT, message_id)
+            await self._fail(upload_id, message_id, FAILED_TEXT)
         finally:
             # Extraction is the only step that needs the image; drop it either way.
-            self._images.discard(upload_id)
+            self._files.discard(upload_id)
+
+    async def _fail(self, upload_id: int, message_id: int, text: str) -> None:
+        async with self._session_factory() as session:
+            await UploadRepository(session).set_status(upload_id, UploadStatus.FAILED)
+        await self._send(text, message_id)
 
     async def _run(
         self, upload_id: int, graph_input: Any, quiet_chat: bool = False
@@ -132,15 +160,20 @@ class UploadCoordinator:
         async with self._session_factory() as session:
             upload = await UploadRepository(session).get(upload_id)
         if payload:
-            await self._send(
-                format_review(payload),
-                upload.telegram_message_id,
-                review_keyboard(payload),
+            text = (
+                format_statement_review(payload)
+                if payload.get("kind") == "statement"
+                else format_review(payload)
             )
+            await self._send(text, upload.telegram_message_id, review_keyboard(payload))
         else:
             link = await self._issue_link()
             await self._send(
-                saved_text(link, self._settings.auth_link_ttl_minutes),
+                saved_text(
+                    link,
+                    self._settings.auth_link_ttl_minutes,
+                    result.get("saved_count"),
+                ),
                 upload.telegram_message_id,
                 no_preview=True,  # a preview bot fetching the link must not use it up
             )

@@ -1,6 +1,7 @@
 """Telegram message text and buttons for the confirmation step."""
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -8,7 +9,9 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 NUDGE_TEXT = "Any purchases to record? Send a receipt photo and I'll add it."
 PROCESSING_TEXT = "Processing this now. You can keep chatting in the meantime."
 FAILED_TEXT = "I couldn't process this file. Please send it again."
-UNSUPPORTED_TEXT = "I can read receipt photos for now. Statements are coming soon."
+UNSUPPORTED_TEXT = (
+    "I can read receipt photos, and statements as PDF, CSV or Excel (.xlsx)."
+)
 
 _FIELDS = (
     ("merchant", "Merchant"),
@@ -80,10 +83,22 @@ def review_keyboard(payload: dict[str, Any]) -> InlineKeyboardMarkup | None:
     return None
 
 
-def saved_text(link: str, ttl_minutes: int) -> str:
-    """Formats the reply sent after a transaction is saved, with a sign-in link."""
+def saved_text(link: str, ttl_minutes: int, count: int | None = None) -> str:
+    """Formats the reply sent after saving, with a sign-in link.
+
+    Args:
+        link: The single-use sign-in link.
+        ttl_minutes: How long the link stays valid.
+        count: How many transactions a statement saved; None for a single receipt.
+    """
+    if count is None:
+        opening = "Saved."
+    elif count == 0:
+        opening = "Nothing new to save: this statement is already recorded."
+    else:
+        opening = f"Saved {count} transaction{'s' if count != 1 else ''}."
     return (
-        f"Saved. Open your transactions (sign-in link, valid for {ttl_minutes} "
+        f"{opening} Open your transactions (sign-in link, valid for {ttl_minutes} "
         f"minutes, works once): {link}"
     )
 
@@ -105,3 +120,65 @@ SIGNED_OUT_TEXT = (
     "Signed out of the web app everywhere, and any unused sign-in links no longer "
     "work. Send /login for a new link."
 )
+
+
+def _money(value: str | None) -> str:
+    return "none" if value is None else f"{Decimal(value):,.2f}"
+
+
+def _signed_money(value: Decimal) -> str:
+    """Formats an amount with an explicit sign: +1,000.00 or -1,000.00."""
+    if value == 0:
+        return "0.00"
+    return f"{'+' if value > 0 else '-'}{abs(value):,.2f}"
+
+
+def _direction_line(label: str, summary: dict[str, Any], with_extremes: bool) -> str:
+    if summary["count"] == 0:
+        return f"{label}: none"
+    line = f"{label}: {summary['count']}, total {_money(summary['total'])}"
+    if with_extremes and summary["count"] > 1:
+        line += (
+            f" (highest {_money(summary['highest'])}, "
+            f"lowest {_money(summary['lowest'])})"
+        )
+    return line
+
+
+def format_statement_review(payload: dict[str, Any]) -> str:
+    """Formats a statement summary and what the user should do next.
+
+    Money out and money in are shown apart, with the net between them. The numbers
+    come from code, not the model, so they can be checked against the statement
+    before confirming.
+    """
+    money_out, money_in = payload["summary"]["out"], payload["summary"]["in"]
+    count = money_out["count"] + money_in["count"]
+    net = Decimal(money_in["total"]) - Decimal(money_out["total"])
+    lines = []
+    notice = _notice_text(payload.get("notice"))
+    if notice:
+        lines += [notice, ""]
+    lines += [
+        f"Statement read: {count} transaction{'s' if count != 1 else ''}",
+        _direction_line("Money out", money_out, with_extremes=True),
+        _direction_line("Money in", money_in, with_extremes=True),
+        f"Net: {_signed_money(net)}",
+        f"Card: {payload['card'] or 'not found'}",
+    ]
+    left_out = []
+    if payload["skipped_unreadable"]:
+        left_out.append(f"{payload['skipped_unreadable']} I couldn't read")
+    if payload["duplicates"]:
+        left_out.append(f"{payload['duplicates']} already saved")
+    if left_out:
+        lines += ["", "Left out: " + ", ".join(left_out) + "."]
+    lines.append("")
+    if payload["missing"]:
+        if payload["cards"]:
+            lines.append("Which card is this statement for? Pick it below.")
+        else:
+            lines.append("You have no cards yet. Add one first, then send this again.")
+    else:
+        lines.append(f"Confirm to save all {count}.")
+    return "\n".join(lines)

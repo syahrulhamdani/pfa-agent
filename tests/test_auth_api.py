@@ -11,9 +11,9 @@ from pfa.core.config import Settings, get_settings
 from pfa.main import app
 from pfa.models import LoginToken
 from pfa.repository.finance import LoginTokenRepository
+from pfa.schemas.auth import TokenType
 from pfa.services.auth import (
     SESSION_COOKIE,
-    TokenType,
     create_token,
     decode_token,
     issue_login_link,

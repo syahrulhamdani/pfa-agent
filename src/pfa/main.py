@@ -20,11 +20,15 @@ from pfa.core.loggers import configure_logging
 from pfa.core.tracing import configure_tracing
 from pfa.graphs.chat import build_chat_graph
 from pfa.graphs.extraction import build_extraction_graph
-from pfa.graphs.extractors import GeminiCorrectionParser, GeminiExtractor
+from pfa.graphs.extractors import (
+    GeminiCorrectionParser,
+    GeminiExtractor,
+    GeminiStatementExtractor,
+)
 from pfa.graphs.llm import build_chat_model, build_extract_model
 from pfa.services.auth import issue_login_link, revoke_all_sessions
 from pfa.services.categories import load_category_names, seed_categories
-from pfa.services.images import ImageStash
+from pfa.services.files import FileStash
 from pfa.services.nudges import NudgeService
 from pfa.services.scheduler import NudgeScheduler
 
@@ -56,11 +60,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         chat_model = build_chat_model(settings)
         chat_graph = build_chat_graph(chat_model, checkpointer)
-        images = ImageStash()  # receipts live in memory only
+        files = FileStash()  # receipts live in memory only
         extraction_graph = build_extraction_graph(
             session_factory=session_factory,
             extractor=GeminiExtractor(build_extract_model(settings)),
-            image_source=images.get,
+            statement_extractor=GeminiStatementExtractor(build_extract_model(settings)),
+            file_source=files.get,
             parse_correction=GeminiCorrectionParser(chat_model),
             checkpointer=checkpointer,
         )
@@ -88,7 +93,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session_factory=session_factory,
             settings=settings,
             issue_link=issue_link,
-            images=images,
+            files=files,
         )
         app.state.telegram = application
 

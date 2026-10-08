@@ -9,5 +9,9 @@
   "Travel",
   "Housing",
   "Education",
-  "Other"
+  "Other",
+  "Salary",
+  "Refund",
+  "Transfer",
+  "Interest"
 ]

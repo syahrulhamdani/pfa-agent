@@ -42,7 +42,15 @@ FULL = ExtractedReceipt(
 IMAGE = b"\xff\xd8receipt-image-bytes"
 
 
-def make_graph(session_factory, receipt=FULL, correction=None, saver=None, seen=None):
+def make_graph(
+    session_factory,
+    receipt=FULL,
+    correction=None,
+    saver=None,
+    seen=None,
+    statement=None,
+    file_source=None,
+):
     async def extractor(content, mime, categories):
         if seen is not None:
             seen.append(content)
@@ -50,13 +58,17 @@ def make_graph(session_factory, receipt=FULL, correction=None, saver=None, seen=
             raise receipt
         return receipt
 
+    async def no_statement(content, fmt, categories):
+        raise AssertionError("a receipt test must not read a statement")
+
     async def parser(text, current, categories, cards):
         return correction or CorrectionResult(is_correction=False)
 
     return build_extraction_graph(
         session_factory=session_factory,
         extractor=extractor,
-        image_source=lambda upload_id: IMAGE,
+        statement_extractor=statement or no_statement,
+        file_source=file_source or (lambda upload_id: IMAGE),
         parse_correction=parser,
         checkpointer=saver or InMemorySaver(),
         today=lambda: TODAY,

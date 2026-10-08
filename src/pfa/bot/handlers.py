@@ -12,8 +12,9 @@ from pfa.bot.formatting import (
     login_text,
 )
 from pfa.bot.uploads import UploadCoordinator
-from pfa.core.exceptions import LLMError
+from pfa.core.exceptions import LLMError, StatementError
 from pfa.graphs.chat import BUSY_REPLY, chat_reply
+from pfa.services.statements import statement_format
 
 
 def is_authorized(update: Update, allowed_chat_id: int) -> bool:
@@ -118,7 +119,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 async def handle_upload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Accepts a receipt photo (or image file) and starts extraction."""
+    """Accepts a receipt photo, an image file or a statement and starts extraction."""
     if not is_authorized(update, context.bot_data["chat_id"]):
         logger.warning(
             "Ignoring upload from unauthorized chat: {}", describe_update(update)
@@ -128,24 +129,33 @@ async def handle_upload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     coordinator: UploadCoordinator = context.bot_data["coordinator"]
     if message is None:
         return
+    document = message.document
+    kind = "image"
     if message.photo:
         file_id, filename, mime_type = (
             message.photo[-1].file_id,
             "receipt.jpg",
             "image/jpeg",
         )
-    elif message.document and (message.document.mime_type or "").startswith("image/"):
-        document = message.document
+    elif document and (document.mime_type or "").startswith("image/"):
         file_id = document.file_id
         filename = document.file_name or "receipt.jpg"
         mime_type = document.mime_type
+    elif document and statement_format(document.file_name, document.mime_type):
+        file_id = document.file_id
+        filename = document.file_name or "statement"
+        mime_type = document.mime_type or "application/octet-stream"
+        kind = "statement"
     else:
         logger.info("Rejected unsupported upload: {}", describe_update(update))
         await message.reply_text(UNSUPPORTED_TEXT)
         return
-    logger.info("Accepting upload {} ({})", filename, mime_type)
+    logger.info("Accepting {} upload {} ({})", kind, filename, mime_type)
     try:
-        await coordinator.receive(message, file_id, filename, mime_type)
+        await coordinator.receive(message, file_id, filename, mime_type, kind=kind)
+    except StatementError as exc:
+        logger.info("Statement not accepted: {}", exc.message)
+        await message.reply_text(exc.message)
     except Exception:
         logger.exception("Could not accept upload")
         await message.reply_text(FAILED_TEXT)

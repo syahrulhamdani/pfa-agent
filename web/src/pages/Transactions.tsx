@@ -3,7 +3,7 @@ import { useTransactions } from '../api/hooks'
 import { FilterBar } from '../components/FilterBar'
 import { filterProblems, isPreset, parseFilters, toSearchParams } from '../filters'
 import type { Filters } from '../filters'
-import { formatAmount, formatDate } from '../format'
+import { formatAmount, formatDate, formatSigned } from '../format'
 
 export function Transactions() {
   const [params, setParams] = useSearchParams()
@@ -17,8 +17,14 @@ export function Transactions() {
     setParams(toSearchParams(next), { replace: true })
   }
 
-  const total =
-    data?.reduce((sum, tx) => sum + Number(tx.amount ?? 0), 0).toString() ?? null
+  // Money out and money in are added up apart, so an expense never hides income.
+  const sumOf = (direction: 'in' | 'out') =>
+    data
+      ?.filter((tx) => tx.direction === direction)
+      .reduce((sum, tx) => sum + Number(tx.amount ?? 0), 0) ?? 0
+  const moneyOut = sumOf('out')
+  const moneyIn = sumOf('in')
+  const net = moneyIn - moneyOut
 
   return (
     <>
@@ -53,8 +59,21 @@ export function Transactions() {
           <>
             <div className="stat-row">
               <div className="card">
-                <div className="stat-label">{preset ? 'Spent today' : 'Total'}</div>
-                <div className="stat-value">{formatAmount(total)}</div>
+                <div className="stat-label">Money out</div>
+                <div className="stat-value">{formatAmount(String(moneyOut))}</div>
+              </div>
+              <div className="card">
+                <div className="stat-label">Money in</div>
+                <div className="stat-value amount-in">
+                  {formatAmount(String(moneyIn))}
+                </div>
+              </div>
+              <div className="card">
+                <div className="stat-label">Net</div>
+                <div className={`stat-value ${net < 0 ? 'amount-negative' : 'amount-in'}`}>
+                  {net > 0 ? '+' : net < 0 ? '−' : ''}
+                  {formatAmount(String(Math.abs(net)))}
+                </div>
               </div>
               <div className="card">
                 <div className="stat-label">Transactions</div>
@@ -67,6 +86,7 @@ export function Transactions() {
                 <thead>
                   <tr>
                     <th>Merchant</th>
+                    <th>Type</th>
                     <th>Category</th>
                     <th>Card</th>
                     <th>Date</th>
@@ -82,10 +102,17 @@ export function Transactions() {
                           <div className="muted">{tx.description}</div>
                         )}
                       </td>
+                      <td>
+                        <span className={`badge badge-${tx.direction}`}>
+                          {tx.direction === 'in' ? 'In' : 'Out'}
+                        </span>
+                      </td>
                       <td>{tx.category ?? '—'}</td>
                       <td>{tx.card ?? '—'}</td>
                       <td>{formatDate(tx.occurred_on)}</td>
-                      <td className="num">{formatAmount(tx.amount)}</td>
+                      <td className={`num amount-${tx.direction}`}>
+                        {formatSigned(tx.amount, tx.direction)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

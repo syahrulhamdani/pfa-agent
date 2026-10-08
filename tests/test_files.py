@@ -1,4 +1,4 @@
-"""Boundary: images are held in memory, handed over once, and then forgotten."""
+"""Boundary: files are held in memory, handed over once, and then forgotten."""
 
 import base64
 
@@ -7,11 +7,11 @@ from langchain_core.messages import HumanMessage
 
 from pfa.graphs.extractors import GeminiExtractor
 from pfa.schemas.extraction import ExtractedReceipt
-from pfa.services.images import ImageStash
+from pfa.services.files import FileStash
 
 
 def test_stash_holds_and_returns_bytes():
-    stash = ImageStash()
+    stash = FileStash()
     stash.put(1, b"abc")
     assert stash.get(1) == b"abc"
     assert stash.get(1) == b"abc"  # reading does not remove it
@@ -19,7 +19,7 @@ def test_stash_holds_and_returns_bytes():
 
 
 def test_discard_forgets_and_is_idempotent():
-    stash = ImageStash()
+    stash = FileStash()
     stash.put(1, b"abc")
     stash.discard(1)
     stash.discard(1)  # no error the second time
@@ -30,7 +30,7 @@ def test_discard_forgets_and_is_idempotent():
 
 def test_unknown_upload_raises_lookup_error():
     with pytest.raises(LookupError, match="42"):
-        ImageStash().get(42)
+        FileStash().get(42)
 
 
 class RecordingModel:

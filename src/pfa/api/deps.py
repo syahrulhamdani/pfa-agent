@@ -7,14 +7,10 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pfa.core.config import Settings, get_settings
+from pfa.core.exceptions import AuthError
 from pfa.repository.finance import AuthStateRepository
-from pfa.services.auth import (
-    SESSION_COOKIE,
-    AuthError,
-    TokenType,
-    decode_token,
-    session_is_revoked,
-)
+from pfa.schemas.auth import TokenType
+from pfa.services.auth import SESSION_COOKIE, decode_token, session_is_revoked
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:

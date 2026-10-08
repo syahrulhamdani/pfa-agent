@@ -13,6 +13,7 @@ from pfa.models import (
     Bank,
     Card,
     Category,
+    Direction,
     LoginToken,
     NudgeSlot,
     Transaction,
@@ -215,6 +216,7 @@ class TransactionRepository:
         min_amount: Decimal | None = None,
         max_amount: Decimal | None = None,
         category_names: list[str] | None = None,
+        direction: Direction | None = None,
         limit: int = 500,
     ) -> list[tuple[Transaction, str | None, str | None]]:
         """Searches confirmed transactions, newest confirmation first.
@@ -240,6 +242,8 @@ class TransactionRepository:
             conditions.append(Transaction.amount <= max_amount)
         if category_names:
             conditions.append(Category.name.in_(category_names))
+        if direction is not None:
+            conditions.append(Transaction.direction == direction.value)
         rows = await self._session.execute(
             select(Transaction, Category.name, Bank.name, Card.name, Card.last4)
             .outerjoin(Category, Category.id == Transaction.category_id)
@@ -257,6 +261,82 @@ class TransactionRepository:
             )
             for tx, category, bank, card, last4 in rows
         ]
+
+    async def add_pending_many(
+        self, upload_id: int, card_id: int | None, rows: list[dict[str, Any]]
+    ) -> list[Transaction]:
+        """Creates pending transactions for every line of a statement."""
+        created = [
+            Transaction(
+                upload_id=upload_id,
+                card_id=card_id,
+                status=TransactionStatus.PENDING.value,
+                **row,
+            )
+            for row in rows
+        ]
+        self._session.add_all(created)
+        await self._session.commit()
+        return created
+
+    async def pending_for_upload(self, upload_id: int) -> list[Transaction]:
+        """Returns an upload's pending transactions in the order they were read."""
+        result = await self._session.scalars(
+            select(Transaction)
+            .where(
+                Transaction.upload_id == upload_id,
+                Transaction.status == TransactionStatus.PENDING.value,
+            )
+            .order_by(Transaction.id)
+        )
+        return list(result)
+
+    async def set_card_for_upload(self, upload_id: int, card_id: int) -> None:
+        """Assigns one card to every pending transaction of an upload."""
+        await self._session.execute(
+            update(Transaction)
+            .where(
+                Transaction.upload_id == upload_id,
+                Transaction.status == TransactionStatus.PENDING.value,
+            )
+            .values(card_id=card_id)
+        )
+        await self._session.commit()
+
+    async def confirmed_on_card_between(
+        self, card_id: int, start: date, end: date
+    ) -> list[Transaction]:
+        """Returns confirmed transactions on a card dated within [start, end]."""
+        result = await self._session.scalars(
+            select(Transaction).where(
+                Transaction.status == TransactionStatus.CONFIRMED.value,
+                Transaction.card_id == card_id,
+                Transaction.occurred_on >= start,
+                Transaction.occurred_on <= end,
+            )
+        )
+        return list(result)
+
+    async def delete_many(self, ids: list[int]) -> None:
+        """Deletes transactions by id."""
+        if ids:
+            await self._session.execute(
+                delete(Transaction).where(Transaction.id.in_(ids))
+            )
+            await self._session.commit()
+
+    async def confirm_many(self, ids: list[int]) -> None:
+        """Flips the given pending transactions to confirmed."""
+        if ids:
+            await self._session.execute(
+                update(Transaction)
+                .where(Transaction.id.in_(ids))
+                .values(
+                    status=TransactionStatus.CONFIRMED.value,
+                    confirmed_at=datetime.now(UTC),
+                )
+            )
+            await self._session.commit()
 
     async def confirmed_times(self) -> list[datetime]:
         """Returns when each confirmed transaction was confirmed, oldest first."""

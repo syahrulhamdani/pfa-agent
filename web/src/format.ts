@@ -6,6 +6,12 @@ export function formatAmount(value: string | null): string {
   })
 }
 
+// Amounts are stored positive; the sign and the word say which way the money moved.
+export function formatSigned(value: string | null, direction: 'in' | 'out'): string {
+  if (value === null) return '—'
+  return `${direction === 'in' ? '+' : '−'}${formatAmount(value)}`
+}
+
 export function formatDate(value: string | null): string {
   if (value === null) return '—'
   // Dates arrive as YYYY-MM-DD; parse as local to avoid a timezone day shift.

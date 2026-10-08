@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pfa.models.finance import Direction
 from pfa.repository.finance import TransactionRepository
 from pfa.schemas.transactions import DateBasis, TransactionFilter, TransactionRead
 
@@ -26,6 +27,7 @@ def _to_read(rows) -> list[TransactionRead]:
             category=category,
             card=card,
             description=tx.description,
+            direction=Direction(tx.direction),
             confirmed_at=tx.confirmed_at,
         )
         for tx, category, card in rows
@@ -77,6 +79,7 @@ async def search_transactions(
         min_amount=flt.min_amount,
         max_amount=flt.max_amount,
         category_names=flt.categories,
+        direction=flt.direction,
         **kwargs,
     )
     return _to_read(rows)

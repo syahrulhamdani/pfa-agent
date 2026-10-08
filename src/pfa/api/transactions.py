@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pfa.api.deps import get_session
 from pfa.core.config import Settings, get_settings
+from pfa.models.finance import Direction
 from pfa.repository.finance import CategoryRepository
 from pfa.schemas.transactions import DateBasis, TransactionFilter, TransactionRead
 from pfa.services.transactions import search_transactions, todays_transactions
@@ -37,6 +38,7 @@ async def list_transactions(
     min_amount: Annotated[Decimal | None, Query(ge=0)] = None,
     max_amount: Annotated[Decimal | None, Query(ge=0)] = None,
     category: Annotated[list[str] | None, Query()] = None,
+    direction: Direction | None = None,
 ):
     """Lists confirmed transactions with optional filters, newest first.
 
@@ -62,6 +64,7 @@ async def list_transactions(
             min_amount=min_amount,
             max_amount=max_amount,
             categories=category or [],
+            direction=direction,
         )
     except ValidationError as exc:
         message = "; ".join(

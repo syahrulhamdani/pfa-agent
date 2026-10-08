@@ -36,6 +36,13 @@ class TransactionStatus(enum.StrEnum):
     CONFIRMED = "confirmed"
 
 
+class Direction(enum.StrEnum):
+    """Which way money moved: out is an expense, in is income."""
+
+    OUT = "out"
+    IN = "in"
+
+
 class Bank(Base):
     """A bank that owns one or more cards."""
 
@@ -87,6 +94,11 @@ class Transaction(Base):
     """One transaction. Fields stay null until read or entered by the user."""
 
     __tablename__ = "transactions"
+    __table_args__ = (
+        CheckConstraint(
+            "direction in ('in', 'out')", name="transactions_direction_valid"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     upload_id: Mapped[int | None] = mapped_column(ForeignKey("uploads.id"))
@@ -96,6 +108,10 @@ class Transaction(Base):
     occurred_on: Mapped[date | None] = mapped_column(Date)
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"))
     description: Mapped[str | None] = mapped_column(String(500))
+    # The amount is always positive; the direction says whether it came in or went out.
+    direction: Mapped[str] = mapped_column(
+        String(3), default=Direction.OUT.value, server_default=Direction.OUT.value
+    )
     status: Mapped[str] = mapped_column(
         String(20), default=TransactionStatus.PENDING.value
     )

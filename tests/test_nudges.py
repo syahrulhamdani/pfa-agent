@@ -15,13 +15,12 @@ from pfa.bot.formatting import NUDGE_TEXT
 from pfa.bot.nudges import build_nudge_sender
 from pfa.models import Transaction
 from pfa.repository.finance import NudgeSlotRepository
+from pfa.schemas.nudges import Slot, SlotSource
 from pfa.services.nudges import (
     DEFAULT_SLOT_TIMES,
     MIN_TRANSACTIONS_TO_LEARN,
     SLOT_COUNT,
     NudgeService,
-    Slot,
-    SlotSource,
     choose_slots,
     circular_gap,
     default_slots,
@@ -158,7 +157,7 @@ def test_just_under_the_threshold_uses_defaults():
 
 def test_at_the_threshold_slots_are_learned():
     slots = choose_slots([hm(8, 5)] * MIN_TRANSACTIONS_TO_LEARN)
-    assert Slot(time(8, 5), SlotSource.LEARNED) in slots
+    assert Slot(at=time(8, 5), source=SlotSource.LEARNED) in slots
     assert len(slots) == SLOT_COUNT
 
 

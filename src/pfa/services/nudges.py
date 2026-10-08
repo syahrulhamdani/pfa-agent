@@ -5,14 +5,13 @@ confirmed transactions it learns the times the user actually uploads, by groupin
 them into six clusters and nudging at each cluster's centre.
 """
 
-import enum
-from dataclasses import dataclass
 from datetime import time
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from pfa.repository.finance import NudgeSlotRepository, TransactionRepository
+from pfa.schemas.nudges import Slot, SlotSource
 
 SLOT_COUNT = 6
 MIN_TRANSACTIONS_TO_LEARN = 20
@@ -31,21 +30,6 @@ DEFAULT_SLOT_TIMES: tuple[time, ...] = (
     time(19, 0),
     time(22, 30),
 )
-
-
-class SlotSource(enum.StrEnum):
-    """Where a slot's time came from."""
-
-    DEFAULT = "default"
-    LEARNED = "learned"
-
-
-@dataclass(frozen=True)
-class Slot:
-    """One nudge time of day and where it came from."""
-
-    at: time
-    source: SlotSource
 
 
 def to_minute(at: time) -> int:
@@ -67,7 +51,7 @@ def circular_gap(a: int, b: int) -> int:
 
 def default_slots() -> list[Slot]:
     """Returns the six starting slots."""
-    return [Slot(at, SlotSource.DEFAULT) for at in DEFAULT_SLOT_TIMES]
+    return [Slot(at=at, source=SlotSource.DEFAULT) for at in DEFAULT_SLOT_TIMES]
 
 
 def learn_slots(minutes: list[int], k: int = SLOT_COUNT) -> list[int]:
@@ -119,7 +103,7 @@ def pad_with_defaults(learned: list[int]) -> list[Slot]:
     Defaults that sit within an hour of a learned slot are skipped first, so the
     padding lands in genuine gaps. If that is not enough, the rest are added anyway.
     """
-    slots = [Slot(to_time(m), SlotSource.LEARNED) for m in learned]
+    slots = [Slot(at=to_time(m), source=SlotSource.LEARNED) for m in learned]
     taken = {to_minute(s.at) for s in slots}
     for gap_required in (MIN_GAP_MINUTES, 0):
         for at in DEFAULT_SLOT_TIMES:
@@ -129,7 +113,7 @@ def pad_with_defaults(learned: list[int]) -> list[Slot]:
             if minute in taken:
                 continue
             if all(circular_gap(minute, t) >= gap_required for t in taken):
-                slots.append(Slot(at, SlotSource.DEFAULT))
+                slots.append(Slot(at=at, source=SlotSource.DEFAULT))
                 taken.add(minute)
     return sorted(slots, key=lambda s: s.at)
 

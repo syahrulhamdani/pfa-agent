@@ -81,6 +81,8 @@ PRD ref: `prd.md > Upload and extraction`, `prd.md > Confirmation and data field
 LangGraph graph with nodes: detect type → parse → extract (Gemini Pro, structured output) → infer card → validate required fields → request missing input / await confirmation (interrupt) → commit. Unreadable fields stay `null`. Statement summary (count, highest, lowest, total) is computed in code, not by the model. Receipt images are held in memory only: they go from Telegram to the model and are discarded when extraction ends, and they are never stored in graph state, so the Postgres checkpointer never holds them.
 PRD ref: `prd.md > Upload and extraction`, `prd.md > Confirmation and data fields`.
 
+Statements take a second branch of the same graph: `extract_statement` (PDF straight to Gemini Pro; CSV and Excel parsed in Python, then sent as text in batches of 100 rows) -> `review_statement` (interrupt) -> `commit_statement`. The summary (count, total, highest, lowest) is computed in code. Money in and money out are both saved, each with its direction (the model classifies every line); unreadable lines are left out and counted, and lines matching an already-confirmed transaction on the same card and in the same direction are skipped. The summary is computed in code for money out and money in apart, plus the net. Files are held in memory only (`FileStash`) and never enter graph state or disk.
+
 ### Chat graph
 Flash Lite routes a message to: casual reply, insights lookup, or recommendation request. Lookup nodes call the analytics service and answer from its numbers; the model never queries the database freely. A correction message during confirmation is routed to the extraction graph's resume step.
 PRD ref: `prd.md > Weekly summary and recommendations`.
@@ -90,7 +92,7 @@ Nodes: gather aggregates, budgets and goals → Flash Lite writes recommendation
 PRD ref: `prd.md > Weekly summary and recommendations`.
 
 ### Analytics service
-Async SQL aggregations for day, week, month, quarter and year: totals, category breakdown, budget remaining. Source of truth for every number the UI and the LLM show.
+Async SQL aggregations for day, week, month, quarter and year: totals, category breakdown, budget remaining. Money out and money in are always aggregated separately; budgets and "spent" figures use money out only. Source of truth for every number the UI and the LLM show.
 PRD ref: `prd.md > Web app: transactions and analytics`.
 
 ### Nudge scheduler
@@ -117,7 +119,7 @@ All tables live in Postgres and persist across restarts. LangGraph's checkpointe
 - **cards**(id, bank_id, name, last4)
 - **categories**(id, name) — seeded at startup from `config/categories.json` (path in `CATEGORIES_FILE`); startup only adds missing names and never deletes.
 - **uploads**(id, telegram_message_id, kind, filename, status: processing | needs_input | awaiting_confirmation | done | failed, created_at)
-- **transactions**(id, upload_id, card_id, merchant, amount, occurred_on, category_id, description, status: pending | confirmed, created_at, confirmed_at) — only `confirmed` rows count in analytics.
+- **transactions**(id, upload_id, card_id, merchant, amount, occurred_on, category_id, description, direction: out | in, status: pending | confirmed, created_at, confirmed_at) — only `confirmed` rows count in analytics. `amount` is always positive; `direction` says whether the money went out (an expense, the default) or came in. A database check allows only those two values.
 - **budget_versions**(id, category_id, month, amount, version, created_at) — the current budget is the highest version for a category and month; older versions remain viewable.
 - **goals**(id, name, target_amount, target_date, saved_amount) — progress is `saved_amount / target_amount`, with `saved_amount` edited in the web app (assumption, see Open Issues).
 - **nudge_slots**(id, time_of_day, source: default | learned)
@@ -142,9 +144,9 @@ pfa/
 │       ├── core/
 │       │   ├── config.py       # settings from env
 │       │   ├── loggers.py      # loguru; LOG_LEVEL, LOG_USE_BASIC_FORMAT
-│       │   └── exceptions.py
-│       ├── models/             # SQLAlchemy models
-│       ├── schemas/            # pydantic request/response models
+│       │   └── exceptions.py   # every domain exception (LLMError, StatementError, AuthError)
+│       ├── models/             # SQLAlchemy tables
+│       ├── schemas/            # pydantic models: request/response shapes and domain value objects (statements.py, nudges.py, auth.py)
 │       ├── repository/         # one async repository per aggregate (transactions, budgets, ...)
 │       ├── services/
 │       │   ├── analytics.py
@@ -178,7 +180,7 @@ pfa/
 - **Telegram Bot API** — docs: https://core.telegram.org/bots/api. Needs a token from BotFather. Free. File downloads go through `getFile`.
 - **PostgreSQL** — local Docker container; no cost.
 - **LangGraph** — open-source library, no account needed.
-- **LangSmith** — observability for every LangGraph and Gemini call. Needs `LANGSMITH_API_KEY`; free tier is enough. Off by default (`LANGSMITH_TRACING=false`) because traces contain messages and extracted receipt data. Receipt images are always redacted from the uploaded copy of a trace (`core/tracing.py`, a LangSmith client `anonymizer`); the request sent to Gemini is never altered. Added by the learner during slice 1; docs: https://docs.smith.langchain.com/.
+- **LangSmith** — observability for every LangGraph and Gemini call. Statement and receipt contents are masked in uploaded traces (images, PDFs, CSV and Excel rows, the transactions a model read, and card hints), while run structure, timings and errors stay visible; extracted receipt fields are not masked. Needs `LANGSMITH_API_KEY`; free tier is enough. Off by default (`LANGSMITH_TRACING=false`) because traces contain messages and extracted receipt data. Receipt images are always redacted from the uploaded copy of a trace (`core/tracing.py`, a LangSmith client `anonymizer`); the request sent to Gemini is never altered. Added by the learner during slice 1; docs: https://docs.smith.langchain.com/.
 - No hosting, email or payment services.
 
 ## Important Failure Modes

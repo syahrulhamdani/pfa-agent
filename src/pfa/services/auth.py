@@ -1,6 +1,5 @@
 """JWT sign-in: a short-lived single-use login link and a longer session cookie."""
 
-import enum
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
@@ -11,23 +10,13 @@ import jwt
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from pfa.core.config import Settings
-from pfa.core.exceptions import PfaError
+from pfa.core.exceptions import AuthError
 from pfa.repository.finance import AuthStateRepository, LoginTokenRepository
+from pfa.schemas.auth import TokenType
 
 ALGORITHM = "HS256"
 SESSION_COOKIE = "pfa_session"
 OWNER = "owner"  # pfa has one user, so every token has the same subject
-
-
-class AuthError(PfaError):
-    """Raised when a token is missing, invalid, expired or of the wrong kind."""
-
-
-class TokenType(enum.StrEnum):
-    """A login link token cannot be used as a session, and the other way round."""
-
-    LOGIN = "login"
-    SESSION = "session"
 
 
 def create_token(

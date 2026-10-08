@@ -9,10 +9,11 @@ from sqlalchemy import select
 
 from pfa.bot.formatting import FAILED_TEXT, PROCESSING_TEXT
 from pfa.bot.uploads import UploadCoordinator
+from pfa.core.exceptions import StatementError
 from pfa.graphs.extraction import NOT_A_CORRECTION
 from pfa.models import Upload, UploadStatus
 from pfa.repository.finance import UploadRepository
-from pfa.services.images import ImageStash
+from pfa.services.files import FileStash
 
 LINK = "http://web/auth?token=T&next=/transactions/today"
 
@@ -44,7 +45,7 @@ def _coordinator(session_factory, settings, result):
         session_factory=session_factory,
         settings=settings,
         issue_link=AsyncMock(return_value=LINK),
-        images=ImageStash(),
+        files=FileStash(),
     )
     return coordinator, bot, graph
 
@@ -132,7 +133,7 @@ def _receive_setup(
         session_factory=session_factory,
         settings=settings,
         issue_link=AsyncMock(return_value=LINK),
-        images=ImageStash(),
+        files=FileStash(),
     )
     message = SimpleNamespace(message_id=55, reply_text=AsyncMock())
     return coordinator, bot, graph, message, settings
@@ -154,7 +155,7 @@ async def test_receive_keeps_the_image_in_memory_only(
     held_during_extraction = []
 
     async def extraction_run(graph_input, config):
-        held_during_extraction.append(coordinator._images.get(graph_input["upload_id"]))
+        held_during_extraction.append(coordinator._files.get(graph_input["upload_id"]))
         return _paused()
 
     graph.ainvoke.side_effect = extraction_run
@@ -172,7 +173,7 @@ async def test_receive_keeps_the_image_in_memory_only(
 
     await asyncio.gather(*coordinator._tasks)  # the background extraction
     assert held_during_extraction == [b"fake-jpeg-bytes"]  # the graph saw the bytes
-    assert len(coordinator._images) == 0  # and they are gone afterwards
+    assert len(coordinator._files) == 0  # and they are gone afterwards
     assert list(tmp_path.rglob("*")) == []  # nothing was written to disk
     review = bot.send_message.await_args.kwargs
     assert review["reply_parameters"].message_id == 55
@@ -227,7 +228,140 @@ async def test_extraction_failure_marks_failed_and_tells_user(
 
     (upload,) = await _all_uploads(session_factory)
     assert upload.status == UploadStatus.FAILED
-    assert len(coordinator._images) == 0  # dropped even though extraction failed
+    assert len(coordinator._files) == 0  # dropped even though extraction failed
     sent = bot.send_message.await_args.kwargs
     assert sent["text"] == FAILED_TEXT
     assert sent["reply_parameters"].message_id == 55
+
+
+# --- statements through the coordinator ---
+
+
+async def test_a_statement_is_recorded_as_one_and_its_bytes_are_dropped_afterwards(
+    session_factory, settings, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    coordinator, bot, graph, message, _ = _receive_setup(
+        session_factory, settings, tmp_path
+    )
+    held = []
+
+    async def run_graph(graph_input, config):
+        held.append(coordinator._files.get(graph_input["upload_id"]))
+        return _paused()
+
+    graph.ainvoke.side_effect = run_graph
+
+    await coordinator.receive(message, "f", "march.csv", "text/csv", kind="statement")
+    await asyncio.gather(*coordinator._tasks)
+
+    (upload,) = await _all_uploads(session_factory)
+    assert (upload.kind, upload.filename, upload.mime_type) == (
+        "statement",
+        "march.csv",
+        "text/csv",
+    )
+    assert held == [b"fake-jpeg-bytes"]
+    assert len(coordinator._files) == 0
+    assert list(tmp_path.rglob("*")) == []  # nothing written to disk
+
+
+async def test_an_oversized_statement_is_refused_and_nothing_is_recorded(
+    session_factory, settings, tmp_path
+):
+    from pfa.services.statements import MAX_BYTES
+
+    big = FakeTelegramFile(content=b"x" * (MAX_BYTES + 1))
+    coordinator, bot, graph, message, _ = _receive_setup(
+        session_factory, settings, tmp_path, telegram_file=big
+    )
+    with pytest.raises(StatementError, match="larger than 10 MB"):
+        await coordinator.receive(
+            message, "f", "huge.csv", "text/csv", kind="statement"
+        )
+    assert await _all_uploads(session_factory) == []
+    graph.ainvoke.assert_not_called()
+    message.reply_text.assert_not_called()
+
+
+async def test_a_large_receipt_photo_is_not_held_to_the_statement_limit(
+    session_factory, settings, tmp_path
+):
+    from pfa.services.statements import MAX_BYTES
+
+    big = FakeTelegramFile(content=b"x" * (MAX_BYTES + 1))
+    coordinator, bot, graph, message, _ = _receive_setup(
+        session_factory, settings, tmp_path, telegram_file=big
+    )
+    await coordinator.receive(message, "f", "r.jpg", "image/jpeg")  # must not raise
+    await asyncio.gather(*coordinator._tasks)
+    assert len(await _all_uploads(session_factory)) == 1
+
+
+async def test_a_statement_problem_is_explained_instead_of_a_generic_failure(
+    session_factory, settings, tmp_path
+):
+    coordinator, bot, graph, message, _ = _receive_setup(
+        session_factory, settings, tmp_path
+    )
+    graph.ainvoke.side_effect = StatementError("I couldn't find any expenses.")
+
+    await coordinator.receive(message, "f", "m.csv", "text/csv", kind="statement")
+    await asyncio.gather(*coordinator._tasks)
+
+    (upload,) = await _all_uploads(session_factory)
+    assert upload.status == UploadStatus.FAILED
+    sent = bot.send_message.await_args.kwargs
+    assert sent["text"] == "I couldn't find any expenses."
+    assert sent["text"] != FAILED_TEXT
+    assert len(coordinator._files) == 0
+
+
+async def test_a_statement_summary_is_sent_with_a_confirm_button(
+    session_factory, settings, tmp_path
+):
+    payload = {
+        "kind": "statement",
+        "upload_id": 1,
+        "summary": {
+            "out": {
+                "count": 3,
+                "total": "100000.50",
+                "highest": "45000.00",
+                "lowest": "25000.50",
+            },
+            "in": {"count": 0, "total": "0.00", "highest": None, "lowest": None},
+        },
+        "card": "BCA Visa 1234",
+        "missing": [],
+        "cards": [],
+        "duplicates": 0,
+        "skipped_unreadable": 0,
+        "notice": None,
+    }
+    coordinator, bot, _, message, _ = _receive_setup(
+        session_factory,
+        settings,
+        tmp_path,
+        result={"__interrupt__": [SimpleNamespace(value=payload)]},
+    )
+    await coordinator.receive(message, "f", "m.csv", "text/csv", kind="statement")
+    await asyncio.gather(*coordinator._tasks)
+
+    sent = bot.send_message.await_args.kwargs
+    assert "Statement read: 3 transactions" in sent["text"]
+    assert "Money out: 3, total 100,000.50" in sent["text"]
+    buttons = [
+        b.callback_data for row in sent["reply_markup"].inline_keyboard for b in row
+    ]
+    assert buttons == ["confirm:1"]
+    assert sent["reply_parameters"].message_id == 55
+
+
+async def test_finishing_a_statement_reports_how_many_were_saved(
+    session_factory, settings
+):
+    await _upload(session_factory)
+    coordinator, bot, _ = _coordinator(session_factory, settings, {"saved_count": 12})
+    await coordinator.resume(1, {"action": "confirm"})
+    assert "Saved 12 transactions." in bot.send_message.await_args.kwargs["text"]

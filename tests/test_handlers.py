@@ -3,6 +3,8 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from pfa.bot.handlers import handle_text, is_authorized
 from pfa.core.exceptions import LLMError
 from pfa.graphs.chat import BUSY_REPLY
@@ -108,7 +110,9 @@ async def test_non_image_document_gets_unsupported_reply():
 
     message = SimpleNamespace(
         photo=[],
-        document=SimpleNamespace(mime_type="application/pdf", file_id="f"),
+        document=SimpleNamespace(
+            mime_type="application/zip", file_name="archive.zip", file_id="f"
+        ),
         reply_text=AsyncMock(),
     )
     update = SimpleNamespace(
@@ -215,3 +219,94 @@ async def test_demo_nudge_sends_a_nudge_for_the_owner_only():
     send.reset_mock()
     await handle_demo_nudge(_update(7, "/demo_nudge"), context)
     send.assert_not_called()
+
+
+# --- uploads: which files are accepted, and as what ---
+
+
+def _document_update(file_name, mime_type, chat_id=42):
+    document = SimpleNamespace(file_name=file_name, mime_type=mime_type, file_id="fid")
+    message = SimpleNamespace(photo=[], document=document, reply_text=AsyncMock())
+    return SimpleNamespace(
+        effective_chat=SimpleNamespace(id=chat_id), effective_message=message
+    )
+
+
+@pytest.mark.parametrize(
+    ("file_name", "mime_type"),
+    [
+        ("march.pdf", "application/pdf"),
+        ("march.csv", "text/csv"),
+        ("MARCH.XLSX", None),
+        (
+            "march",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
+    ],
+)
+async def test_statement_files_are_accepted_as_statements(file_name, mime_type):
+    from pfa.bot.handlers import handle_upload
+
+    update = _document_update(file_name, mime_type)
+    coordinator = SimpleNamespace(receive=AsyncMock())
+    await handle_upload(update, _upload_context(coordinator))
+    coordinator.receive.assert_awaited_once()
+    args, kwargs = coordinator.receive.await_args
+    assert kwargs == {"kind": "statement"}
+    assert args[1] == "fid"
+    update.effective_message.reply_text.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("file_name", "mime_type"),
+    [
+        ("old.xls", "application/vnd.ms-excel"),
+        ("notes.txt", "text/plain"),
+        ("archive.zip", "application/zip"),
+        ("slides.pptx", None),
+    ],
+)
+async def test_other_files_are_refused_with_the_supported_formats(file_name, mime_type):
+    from pfa.bot.formatting import UNSUPPORTED_TEXT
+    from pfa.bot.handlers import handle_upload
+
+    update = _document_update(file_name, mime_type)
+    coordinator = SimpleNamespace(receive=AsyncMock())
+    await handle_upload(update, _upload_context(coordinator))
+    coordinator.receive.assert_not_called()
+    update.effective_message.reply_text.assert_awaited_once_with(UNSUPPORTED_TEXT)
+    assert "PDF, CSV or Excel" in UNSUPPORTED_TEXT
+
+
+async def test_an_image_file_is_still_a_receipt():
+    from pfa.bot.handlers import handle_upload
+
+    update = _document_update("scan.png", "image/png")
+    coordinator = SimpleNamespace(receive=AsyncMock())
+    await handle_upload(update, _upload_context(coordinator))
+    _, kwargs = coordinator.receive.await_args
+    assert kwargs == {"kind": "image"}
+
+
+async def test_a_refused_statement_is_explained_to_the_user():
+    from pfa.bot.handlers import handle_upload
+    from pfa.core.exceptions import StatementError
+
+    update = _document_update("huge.csv", "text/csv")
+    coordinator = SimpleNamespace(
+        receive=AsyncMock(side_effect=StatementError("This file is too big."))
+    )
+    await handle_upload(update, _upload_context(coordinator))
+    update.effective_message.reply_text.assert_awaited_once_with(
+        "This file is too big."
+    )
+
+
+async def test_statements_from_other_chats_are_ignored():
+    from pfa.bot.handlers import handle_upload
+
+    update = _document_update("march.csv", "text/csv", chat_id=7)
+    coordinator = SimpleNamespace(receive=AsyncMock())
+    await handle_upload(update, _upload_context(coordinator))
+    coordinator.receive.assert_not_called()
+    update.effective_message.reply_text.assert_not_called()

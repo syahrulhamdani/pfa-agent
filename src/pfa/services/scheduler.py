@@ -7,7 +7,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
 
-from pfa.services.nudges import NudgeService, Slot
+from pfa.schemas.nudges import Slot
+from pfa.services.nudges import NudgeService
 
 NUDGE_JOB_PREFIX = "nudge-"
 REFRESH_JOB_ID = "refresh-slots"

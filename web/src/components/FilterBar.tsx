@@ -1,6 +1,6 @@
 import { useCategories } from '../api/hooks'
 import { filterProblems, isPreset, NO_FILTERS } from '../filters'
-import type { DateBasis, Filters } from '../filters'
+import type { DateBasis, DirectionFilter, Filters } from '../filters'
 
 interface Props {
   filters: Filters
@@ -76,6 +76,17 @@ export function FilterBar({ filters, onChange }: Props) {
       </div>
 
       <div className="form-row">
+        <label>
+          Type
+          <select
+            value={filters.direction}
+            onChange={(e) => set({ direction: e.target.value as DirectionFilter })}
+          >
+            <option value="">Money in and out</option>
+            <option value="out">Money out</option>
+            <option value="in">Money in</option>
+          </select>
+        </label>
         <label>
           Min amount
           <input

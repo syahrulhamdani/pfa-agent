@@ -16,7 +16,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from pfa.core.config import Settings, get_settings
 from pfa.main import app
-from pfa.services.auth import SESSION_COOKIE, TokenType, create_token
+from pfa.schemas.auth import TokenType
+from pfa.services.auth import SESSION_COOKIE, create_token
 from pfa.services.categories import seed_categories
 
 TEST_AUTH_SECRET = "test-secret-" + "x" * 40
@@ -51,7 +52,16 @@ ROOT = Path(__file__).resolve().parent.parent
 ADMIN_CONN = "postgresql://pfa:pfa@localhost:5433/postgres"
 TEST_DB = "pfa_test"
 TEST_DB_URL = f"postgresql+asyncpg://pfa:pfa@localhost:5433/{TEST_DB}"
-TEST_CATEGORIES = ["Groceries", "Dining", "Transport", "Other"]
+TEST_CATEGORIES = [
+    "Groceries",
+    "Dining",
+    "Transport",
+    "Other",
+    "Salary",
+    "Refund",
+    "Transfer",
+    "Interest",
+]
 
 
 @pytest.fixture(scope="session")

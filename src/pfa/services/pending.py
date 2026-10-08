@@ -1,7 +1,7 @@
 """Loading and editing a pending transaction in the shape the user sees."""
 
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,13 +27,18 @@ def parse_date(value: str | date | None) -> date | None:
 
 
 def parse_amount(value: float | int | str | Decimal | None) -> Decimal | None:
-    """Converts a number to a two-decimal Decimal. Returns None if unusable."""
+    """Converts a number to a two-decimal Decimal, rounding half up.
+
+    Returns None for anything that is not a finite number.
+    """
     if value is None:
         return None
     try:
-        return Decimal(str(value)).quantize(Decimal("0.01"))
+        amount = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     except (InvalidOperation, ValueError):
         return None
+    # NaN and infinity do not raise above, but must never be saved as an amount.
+    return amount if amount.is_finite() else None
 
 
 async def load_pending(

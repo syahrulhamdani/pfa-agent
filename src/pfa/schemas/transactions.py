@@ -6,6 +6,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field, model_validator
 
+from pfa.models.finance import Direction
+
 
 class CardOption(BaseModel):
     """A card the user can pick, with a readable label."""
@@ -39,6 +41,7 @@ class TransactionRead(BaseModel):
     category: str | None
     card: str | None
     description: str | None
+    direction: Direction
     confirmed_at: datetime | None
 
 
@@ -58,6 +61,7 @@ class TransactionFilter(BaseModel):
     min_amount: Decimal | None = Field(None, ge=0)
     max_amount: Decimal | None = Field(None, ge=0)
     categories: list[str] = Field(default_factory=list)
+    direction: Direction | None = None  # None means money in and money out
 
     @model_validator(mode="after")
     def _ranges_make_sense(self) -> "TransactionFilter":
