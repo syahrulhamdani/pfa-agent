@@ -43,6 +43,11 @@ class Direction(enum.StrEnum):
     IN = "in"
 
 
+# Money moved between the user's own cards, accounts or pockets. Transactions in this
+# category are listed but never counted as spending or income.
+TRANSFER_CATEGORY = "Transfer"
+
+
 class Bank(Base):
     """A bank that owns one or more cards."""
 

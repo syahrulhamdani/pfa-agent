@@ -42,6 +42,8 @@ class TransactionRead(BaseModel):
     card: str | None
     description: str | None
     direction: Direction
+    # Moves between the user's own accounts: shown, but not counted in totals.
+    is_transfer: bool
     confirmed_at: datetime | None
 
 
@@ -74,3 +76,16 @@ class TransactionFilter(BaseModel):
         ):
             raise ValueError("min_amount must not exceed max_amount")
         return self
+
+
+class CategoryChange(BaseModel):
+    """A request to put saved transactions into another category."""
+
+    ids: list[int] = Field(min_length=1, max_length=500)
+    category: str = Field(min_length=1, max_length=50)
+
+
+class CategoryChanged(BaseModel):
+    """How many transactions were moved to the new category."""
+
+    updated: int

@@ -137,3 +137,26 @@ def test_the_saved_message_depends_on_what_was_saved():
     assert saved_text(link, 10, 33).startswith("Saved 33 transactions. Open")
     assert saved_text(link, 10, 0).startswith("Nothing new to save")
     assert link in saved_text(link, 10, 33)
+
+
+# --- transfers between the user's own accounts ---
+
+
+def test_transfers_get_their_own_line_and_are_not_part_of_the_net():
+    p = payload(transfers={"count": 2, "total": "2500000.00"})
+    text = format_statement_review(p)
+    assert (
+        "Between your own accounts: 2, total 2,500,000.00 "
+        "(not counted as spending or income)" in text
+    )
+    assert "Statement read: 6 transactions" in text  # 3 out + 1 in + 2 transfers
+    assert "Net: +7,765,432.20" in text  # unchanged by the transfers
+    assert "Confirm to save all 6." in text
+
+
+def test_no_transfer_line_when_there_are_none():
+    for transfers in ({"count": 0, "total": "0.00"}, None):
+        p = payload()
+        if transfers is not None:
+            p["transfers"] = transfers
+        assert "Between your own accounts" not in format_statement_review(p)

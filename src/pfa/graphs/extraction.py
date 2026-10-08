@@ -12,6 +12,7 @@ ids and the user's latest decision, so it stays small in the checkpointer.
 
 from collections.abc import Awaitable, Callable
 from datetime import date
+from decimal import Decimal
 from typing import Any, TypedDict
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -22,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from pfa.core.exceptions import StatementError
 from pfa.models import Direction, UploadStatus
+from pfa.models.finance import TRANSFER_CATEGORY
 from pfa.repository.finance import (
     CardRepository,
     CategoryRepository,
@@ -54,7 +56,7 @@ from pfa.services.validation import missing_fields
 Extractor = Callable[[bytes, str, list[str]], Awaitable[ExtractedReceipt]]
 FileSource = Callable[[int], bytes]
 StatementExtractor = Callable[
-    [bytes, StatementFormat, list[str]], Awaitable[ExtractedStatement]
+    [bytes, StatementFormat, list[str], list[str]], Awaitable[ExtractedStatement]
 ]
 CorrectionParser = Callable[
     [str, PendingTransaction, list[str], list[str]], Awaitable[CorrectionResult]
@@ -293,7 +295,10 @@ def build_extraction_graph(
             categories = await CategoryRepository(session).list_all()
             cards = await CardRepository(session).list_options()
             statement = await statement_extractor(
-                file_source(state["upload_id"]), fmt, [c.name for c in categories]
+                file_source(state["upload_id"]),
+                fmt,
+                [c.name for c in categories],
+                [c.label for c in cards],  # the user's own accounts, for transfers
             )
             normalized = normalize_rows(statement.transactions)
             if not normalized.rows:
@@ -328,8 +333,18 @@ def build_extraction_graph(
             )
             cards = await CardRepository(session).list_options()
             card = next((c for c in cards if c.id == card_id), None)
+            categories = await CategoryRepository(session).list_all()
+            transfer_ids = {
+                c.id
+                for c in categories
+                if c.name.casefold() == TRANSFER_CATEGORY.casefold()
+            }
+            # Moves between the user's own accounts are listed apart: they are neither
+            # spending nor income.
+            transfers = [t for t in keep if t.category_id in transfer_ids]
+            counted = [t for t in keep if t.category_id not in transfer_ids]
             totals = summarize_by_direction(
-                (Direction(t.direction), t.amount) for t in keep
+                (Direction(t.direction), t.amount) for t in counted
             )
             missing = [] if card_id is not None else ["card"]
             await UploadRepository(session).set_status(
@@ -351,6 +366,10 @@ def build_extraction_graph(
                 "summary": {
                     "out": _summary_json(totals.money_out),
                     "in": _summary_json(totals.money_in),
+                },
+                "transfers": {
+                    "count": len(transfers),
+                    "total": str(sum((t.amount for t in transfers), Decimal("0.00"))),
                 },
                 "card": card.label if card else None,
                 "missing": missing,

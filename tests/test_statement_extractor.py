@@ -12,6 +12,7 @@ from pfa.graphs.extractors import GeminiStatementExtractor
 from pfa.schemas.extraction import ExtractedStatement, ExtractedStatementRow
 
 CATEGORIES = ["Groceries", "Dining", "Other"]
+ACCOUNTS = ["BCA Visa 1234", "Mandiri Debit 9999"]
 
 
 class QueueModel:
@@ -52,7 +53,9 @@ def csv_bytes(rows: int) -> bytes:
 
 async def test_a_csv_is_sent_as_text_with_its_header_and_the_categories():
     model = QueueModel(ExtractedStatement(card_hint="BCA 1234", transactions=[line()]))
-    result = await GeminiStatementExtractor(model)(csv_bytes(3), "csv", CATEGORIES)
+    result = await GeminiStatementExtractor(model)(
+        csv_bytes(3), "csv", CATEGORIES, ACCOUNTS
+    )
 
     assert len(model.sent) == 1
     (block,) = blocks_of(model)
@@ -67,7 +70,7 @@ async def test_a_csv_is_sent_as_text_with_its_header_and_the_categories():
 async def test_a_pdf_is_sent_as_a_file_block_with_the_original_bytes():
     pdf = b"%PDF-1.7 pretend statement"
     model = QueueModel(ExtractedStatement(transactions=[line()]))
-    await GeminiStatementExtractor(model)(pdf, "pdf", CATEGORIES)
+    await GeminiStatementExtractor(model)(pdf, "pdf", CATEGORIES, ACCOUNTS)
 
     text_block, file_block = blocks_of(model)
     assert text_block["type"] == "text"
@@ -83,7 +86,9 @@ async def test_a_long_spreadsheet_is_sent_in_batches_and_merged_in_order():
         ExtractedStatement(card_hint="Mandiri 9999", transactions=[line("B1")]),
         ExtractedStatement(card_hint="ignored later hint", transactions=[line("C1")]),
     )
-    result = await GeminiStatementExtractor(model)(csv_bytes(250), "csv", CATEGORIES)
+    result = await GeminiStatementExtractor(model)(
+        csv_bytes(250), "csv", CATEGORIES, ACCOUNTS
+    )
 
     assert len(model.sent) == 3  # 100 + 100 + 50 rows
     for call in range(3):
@@ -101,14 +106,18 @@ async def test_an_excel_statement_is_read_in_python_then_sent_as_text():
     workbook.save(buffer)
 
     model = QueueModel(ExtractedStatement(transactions=[line()]))
-    await GeminiStatementExtractor(model)(buffer.getvalue(), "xlsx", CATEGORIES)
+    await GeminiStatementExtractor(model)(
+        buffer.getvalue(), "xlsx", CATEGORIES, ACCOUNTS
+    )
     (block,) = blocks_of(model)
     assert "Indomaret\t45000" in block["text"]
 
 
 async def test_no_card_hint_anywhere_gives_none():
     model = QueueModel(ExtractedStatement(transactions=[line()]))
-    result = await GeminiStatementExtractor(model)(csv_bytes(2), "csv", CATEGORIES)
+    result = await GeminiStatementExtractor(model)(
+        csv_bytes(2), "csv", CATEGORIES, ACCOUNTS
+    )
     assert result.card_hint is None
 
 
@@ -116,14 +125,14 @@ async def test_no_card_hint_anywhere_gives_none():
 async def test_an_empty_spreadsheet_never_reaches_the_model(content):
     model = QueueModel()
     with pytest.raises(StatementError):
-        await GeminiStatementExtractor(model)(content, "csv", CATEGORIES)
+        await GeminiStatementExtractor(model)(content, "csv", CATEGORIES, ACCOUNTS)
     assert model.sent == []
 
 
 async def test_a_model_failure_becomes_an_llm_error():
     model = QueueModel(RuntimeError("rate limited"))
     with pytest.raises(LLMError, match="rate limited"):
-        await GeminiStatementExtractor(model)(csv_bytes(2), "csv", CATEGORIES)
+        await GeminiStatementExtractor(model)(csv_bytes(2), "csv", CATEGORIES, ACCOUNTS)
 
 
 async def test_a_failure_in_a_later_batch_fails_the_whole_statement():
@@ -131,12 +140,28 @@ async def test_a_failure_in_a_later_batch_fails_the_whole_statement():
         ExtractedStatement(transactions=[line()]), RuntimeError("timeout")
     )
     with pytest.raises(LLMError):
-        await GeminiStatementExtractor(model)(csv_bytes(150), "csv", CATEGORIES)
+        await GeminiStatementExtractor(model)(
+            csv_bytes(150), "csv", CATEGORIES, ACCOUNTS
+        )
 
 
 async def test_the_prompt_limits_transfer_to_the_users_own_accounts():
     model = QueueModel(ExtractedStatement(transactions=[line()]))
-    await GeminiStatementExtractor(model)(csv_bytes(2), "csv", CATEGORIES)
+    await GeminiStatementExtractor(model)(csv_bytes(2), "csv", CATEGORIES, ACCOUNTS)
     text = blocks_of(model)[0]["text"]
     assert 'category "Transfer" only for money moved between the user\'s own' in text
     assert "another person or a business is not a transfer" in text
+
+
+async def test_the_prompt_names_the_users_own_accounts_and_says_when_not_to_guess():
+    model = QueueModel(ExtractedStatement(transactions=[line()]))
+    await GeminiStatementExtractor(model)(csv_bytes(2), "csv", CATEGORIES, ACCOUNTS)
+    text = blocks_of(model)[0]["text"]
+    assert "BCA Visa 1234, Mandiri Debit 9999" in text
+    assert "When unsure whether the other side is the user, do not use Transfer" in text
+
+
+async def test_the_prompt_copes_with_no_registered_accounts():
+    model = QueueModel(ExtractedStatement(transactions=[line()]))
+    await GeminiStatementExtractor(model)(csv_bytes(2), "csv", CATEGORIES, [])
+    assert "none registered yet" in blocks_of(model)[0]["text"]

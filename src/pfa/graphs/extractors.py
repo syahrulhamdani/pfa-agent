@@ -118,6 +118,9 @@ STATEMENT_PROMPT = (
     "cards, accounts or pockets, such as paying a card bill from a bank account or "
     "topping up an e-wallet. Money sent to or received from another person or a "
     "business is not a transfer: give it the category that fits best. "
+    "The user's own cards and accounts are: {accounts}. A line that names one of "
+    "them, or clearly moves money between the user's own accounts, is a transfer. "
+    "When unsure whether the other side is the user, do not use Transfer. "
     "Choose each category from this list only: {categories}."
 )
 
@@ -130,7 +133,11 @@ class GeminiStatementExtractor:
         self._model = model.with_structured_output(ExtractedStatement)
 
     async def __call__(
-        self, content: bytes, fmt: StatementFormat, categories: list[str]
+        self,
+        content: bytes,
+        fmt: StatementFormat,
+        categories: list[str],
+        own_accounts: list[str],
     ) -> ExtractedStatement:
         """Extracts the card hint and every line of a statement held in memory.
 
@@ -141,7 +148,10 @@ class GeminiStatementExtractor:
             StatementError: If a spreadsheet is empty, too large or unreadable.
             LLMError: If a model call fails.
         """
-        instruction = STATEMENT_PROMPT.format(categories=", ".join(categories))
+        instruction = STATEMENT_PROMPT.format(
+            categories=", ".join(categories),
+            accounts=", ".join(own_accounts) or "none registered yet",
+        )
         if fmt == "pdf":
             file_block = {
                 "type": "file",

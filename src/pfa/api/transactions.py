@@ -11,10 +11,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pfa.api.deps import get_session
 from pfa.core.config import Settings, get_settings
+from pfa.core.exceptions import NotFoundError
 from pfa.models.finance import Direction
 from pfa.repository.finance import CategoryRepository
-from pfa.schemas.transactions import DateBasis, TransactionFilter, TransactionRead
-from pfa.services.transactions import search_transactions, todays_transactions
+from pfa.schemas.transactions import (
+    CategoryChange,
+    CategoryChanged,
+    DateBasis,
+    TransactionFilter,
+    TransactionRead,
+)
+from pfa.services.transactions import (
+    change_category,
+    search_transactions,
+    todays_transactions,
+)
 
 router = APIRouter(tags=["transactions"])
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -72,6 +83,16 @@ async def list_transactions(
         )
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, message) from None
     return await search_transactions(session, settings.timezone, flt)
+
+
+@router.patch("/transactions", response_model=CategoryChanged)
+async def change_transaction_category(body: CategoryChange, session: Session):
+    """Moves one or many saved transactions to another category."""
+    try:
+        updated = await change_category(session, body.ids, body.category)
+    except NotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, exc.message) from None
+    return CategoryChanged(updated=updated)
 
 
 @router.get("/categories", response_model=list[str])

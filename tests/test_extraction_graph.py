@@ -58,7 +58,7 @@ def make_graph(
             raise receipt
         return receipt
 
-    async def no_statement(content, fmt, categories):
+    async def no_statement(content, fmt, categories, own_accounts):
         raise AssertionError("a receipt test must not read a statement")
 
     async def parser(text, current, categories, cards):

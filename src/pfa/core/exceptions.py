@@ -20,3 +20,12 @@ class StatementError(PfaError):
 
 class AuthError(PfaError):
     """Raised when a token is missing, invalid, expired or of the wrong kind."""
+
+
+class NotFoundError(PfaError):
+    """Something the user asked for does not exist, worded to be shown to them."""
+
+    def __init__(self, message: str) -> None:
+        """Keeps the user-facing message."""
+        super().__init__(message)
+        self.message = message

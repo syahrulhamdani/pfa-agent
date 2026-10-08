@@ -9,6 +9,8 @@ export interface Transaction {
   description: string | null
   // Which way the money moved: out is an expense, in is income. Amounts are positive.
   direction: 'in' | 'out'
+  // True for a move between the user's own accounts, which totals do not count.
+  is_transfer: boolean
   confirmed_at: string | null
 }
 
@@ -22,4 +24,8 @@ export interface Card {
   bank_id: number
   name: string
   last4: string | null
+}
+
+export interface CategoryChanged {
+  updated: number
 }

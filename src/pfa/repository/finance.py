@@ -338,6 +338,29 @@ class TransactionRepository:
             )
             await self._session.commit()
 
+    async def confirmed_ids(self, ids: list[int]) -> set[int]:
+        """Returns which of the given ids are confirmed transactions."""
+        result = await self._session.scalars(
+            select(Transaction.id).where(
+                Transaction.id.in_(ids),
+                Transaction.status == TransactionStatus.CONFIRMED.value,
+            )
+        )
+        return set(result)
+
+    async def set_category(self, ids: list[int], category_id: int) -> int:
+        """Moves confirmed transactions to a category; returns how many changed."""
+        result = await self._session.execute(
+            update(Transaction)
+            .where(
+                Transaction.id.in_(ids),
+                Transaction.status == TransactionStatus.CONFIRMED.value,
+            )
+            .values(category_id=category_id)
+        )
+        await self._session.commit()
+        return result.rowcount
+
     async def confirmed_times(self) -> list[datetime]:
         """Returns when each confirmed transaction was confirmed, oldest first."""
         result = await self._session.scalars(

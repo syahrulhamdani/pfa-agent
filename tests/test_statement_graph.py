@@ -45,9 +45,9 @@ def statement_of(rows=THREE, card_hint="BCA ****1234"):
 
 
 def graph_for(session_factory, statement, seen=None, **kwargs):
-    async def extractor(content, fmt, categories):
+    async def extractor(content, fmt, categories, own_accounts):
         if seen is not None:
-            seen.append((content, fmt, categories))
+            seen.append((content, fmt, categories, own_accounts))
         if isinstance(statement, Exception):
             raise statement
         return statement
@@ -160,7 +160,7 @@ async def test_the_extractor_gets_the_stashed_bytes_and_the_detected_format(
     seen: list = []
     upload_id, _ = await new_statement(session_factory)
     await run(graph_for(session_factory, statement_of(), seen=seen), upload_id)
-    content, fmt, categories = seen[0]
+    content, fmt, categories, accounts = seen[0]
     assert (content, fmt) == (CSV, "csv")
     assert "Groceries" in categories
 
@@ -548,3 +548,84 @@ async def test_the_model_not_giving_a_direction_means_money_out(session_factory)
     await run(graph, upload_id)
     ((tx, _),) = await transactions(session_factory)
     assert tx.direction == "out"
+
+
+# --- transfers between the user's own accounts ---
+
+
+async def test_moves_between_own_accounts_are_listed_apart_not_counted(session_factory):
+    rows = [
+        line("Indomaret", 45000, "2026-10-01"),
+        line("Salary", 9_000_000, "2026-10-01", "Salary", direction="in"),
+        line("Pay BCA Visa 1234", 2_000_000, "2026-10-02", "Transfer"),
+        line("Payment received", 500_000, "2026-10-03", "transfer", direction="in"),
+    ]
+    upload_id, _ = await new_statement(session_factory)
+    graph = graph_for(session_factory, statement_of(rows))
+
+    payload = pending_interrupt(await run(graph, upload_id))
+
+    assert payload["summary"]["out"]["count"] == 1  # only the real purchase
+    assert payload["summary"]["out"]["total"] == "45000.00"
+    assert payload["summary"]["in"]["count"] == 1  # only the real income
+    assert payload["summary"]["in"]["total"] == "9000000.00"
+    assert payload["transfers"] == {"count": 2, "total": "2500000.00"}
+
+
+async def test_transfers_are_still_saved_when_the_statement_is_confirmed(
+    session_factory,
+):
+    rows = [
+        line("Indomaret", 45000, "2026-10-01"),
+        line("Top up e-wallet", 100_000, "2026-10-02", "Transfer"),
+    ]
+    upload_id, _ = await new_statement(session_factory)
+    graph = graph_for(session_factory, statement_of(rows))
+    await run(graph, upload_id)
+
+    result = await run(graph, upload_id, {"action": "confirm"})
+
+    assert result["saved_count"] == 2  # listed and filterable, just not counted
+    saved = {
+        t.merchant: (name, t.status) for t, name in await transactions(session_factory)
+    }
+    assert saved["Top up e-wallet"] == ("Transfer", "confirmed")
+
+
+async def test_money_sent_to_a_person_or_merchant_still_counts_as_spending(
+    session_factory,
+):
+    # The model gave these ordinary categories, not Transfer, so they are expenses.
+    rows = [
+        line("Transfer to Budi", 250_000, "2026-10-02", "Other"),
+        line("Bayar Warung Bu Sari", 80_000, "2026-10-03", "Dining"),
+    ]
+    upload_id, _ = await new_statement(session_factory)
+    graph = graph_for(session_factory, statement_of(rows))
+
+    payload = pending_interrupt(await run(graph, upload_id))
+
+    assert payload["summary"]["out"]["count"] == 2
+    assert payload["summary"]["out"]["total"] == "330000.00"
+    assert payload["transfers"] == {"count": 0, "total": "0.00"}
+
+
+async def test_the_model_is_told_which_cards_are_the_users_own(session_factory):
+    seen: list = []
+    upload_id, _ = await new_statement(session_factory)
+    async with session_factory() as session:
+        bank = await BankRepository(session).add("Mandiri")
+        await CardRepository(session).add(bank.id, "Debit", "9999")
+    await run(graph_for(session_factory, statement_of(), seen=seen), upload_id)
+
+    own_accounts = seen[0][3]
+    assert sorted(own_accounts) == ["BCA Visa 1234", "Mandiri Debit 9999"]
+
+
+async def test_with_no_cards_registered_the_model_gets_an_empty_list(session_factory):
+    seen: list = []
+    upload_id, _ = await new_statement(session_factory, with_card=False)
+    await run(
+        graph_for(session_factory, statement_of(card_hint=None), seen=seen), upload_id
+    )
+    assert seen[0][3] == []

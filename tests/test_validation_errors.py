@@ -105,3 +105,14 @@ def test_an_error_without_a_location_still_reads_sensibly():
     assert describe_validation_error({"loc": (), "msg": "Field required"}) == (
         "Request: Field required"
     )
+
+
+def test_an_invalid_list_item_is_reported_by_its_field_not_its_position():
+    error = {"loc": ("body", "ids", 0), "msg": "Input should be a valid integer"}
+    assert describe_validation_error(error) == (
+        "Selection: choose between 1 and 500 transactions"
+    )
+
+
+def test_a_location_of_only_numbers_still_reads_sensibly():
+    assert describe_validation_error({"loc": (0,), "msg": "Bad"}) == "Request: Bad"

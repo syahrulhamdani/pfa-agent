@@ -159,13 +159,20 @@ def format_statement_review(payload: dict[str, Any]) -> str:
     notice = _notice_text(payload.get("notice"))
     if notice:
         lines += [notice, ""]
+    transfers = payload.get("transfers") or {"count": 0, "total": "0.00"}
+    count += transfers["count"]
     lines += [
         f"Statement read: {count} transaction{'s' if count != 1 else ''}",
         _direction_line("Money out", money_out, with_extremes=True),
         _direction_line("Money in", money_in, with_extremes=True),
         f"Net: {_signed_money(net)}",
-        f"Card: {payload['card'] or 'not found'}",
     ]
+    if transfers["count"]:
+        lines.append(
+            f"Between your own accounts: {transfers['count']}, total "
+            f"{_money(transfers['total'])} (not counted as spending or income)"
+        )
+    lines.append(f"Card: {payload['card'] or 'not found'}")
     left_out = []
     if payload["skipped_unreadable"]:
         left_out.append(f"{payload['skipped_unreadable']} I couldn't read")

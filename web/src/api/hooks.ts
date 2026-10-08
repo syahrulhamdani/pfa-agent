@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import { isPreset, toApiQuery } from '../filters'
 import type { Filters } from '../filters'
-import type { Bank, Card, Transaction } from './types'
+import type { Bank, Card, CategoryChanged, Transaction } from './types'
 
 export function useSession() {
   return useQuery({
@@ -73,5 +73,18 @@ export function useCreateCard() {
         body: JSON.stringify({ name: input.name, last4: input.last4 }),
       }),
     onSuccess: () => client.invalidateQueries({ queryKey: ['cards'] }),
+  })
+}
+
+// Moves saved transactions to another category; the lists then reload.
+export function useChangeCategory() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { ids: number[]; category: string }) =>
+      api<CategoryChanged>('/transactions', {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['transactions'] }),
   })
 }

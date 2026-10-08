@@ -211,7 +211,9 @@ async def _traced_statement_upload(monkeypatch, content, fmt, masked=True):
     ).model_dump_json()
     extractor = GeminiStatementExtractor(_StructuredFake(answer))
     with langsmith.tracing_context(enabled=True, client=client):
-        result = await extractor(content, fmt, ["Groceries", "Other"])
+        result = await extractor(
+            content, fmt, ["Groceries", "Other"], ["BCA Visa 1234"]
+        )
     wait_for_all_tracers()
     client.flush()
     uploaded = " ".join(

@@ -5,8 +5,9 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pfa.models.finance import Direction
-from pfa.repository.finance import TransactionRepository
+from pfa.core.exceptions import NotFoundError
+from pfa.models.finance import TRANSFER_CATEGORY, Direction
+from pfa.repository.finance import CategoryRepository, TransactionRepository
 from pfa.schemas.transactions import DateBasis, TransactionFilter, TransactionRead
 
 
@@ -28,6 +29,7 @@ def _to_read(rows) -> list[TransactionRead]:
             card=card,
             description=tx.description,
             direction=Direction(tx.direction),
+            is_transfer=(category or "").casefold() == TRANSFER_CATEGORY.casefold(),
             confirmed_at=tx.confirmed_at,
         )
         for tx, category, card in rows
@@ -83,3 +85,36 @@ async def search_transactions(
         **kwargs,
     )
     return _to_read(rows)
+
+
+async def change_category(
+    session: AsyncSession, ids: list[int], category_name: str
+) -> int:
+    """Moves saved transactions to another category.
+
+    All or nothing: if the category or any transaction is unknown (or not saved
+    yet), nothing changes. Changing a past transaction's category also changes how
+    it counts in any comparison made later, such as against a budget.
+
+    Args:
+        session: Database session.
+        ids: The transactions to move. Duplicates are ignored.
+        category_name: The target category, matched ignoring case.
+
+    Returns:
+        How many transactions were moved.
+
+    Raises:
+        NotFoundError: If the category does not exist, or any id is not a saved
+            transaction.
+    """
+    wanted = sorted(set(ids))
+    category_id = await CategoryRepository(session).get_id_by_name(category_name)
+    if category_id is None:
+        raise NotFoundError(f"There is no category called “{category_name}”.")
+    repo = TransactionRepository(session)
+    missing = set(wanted) - await repo.confirmed_ids(wanted)
+    if missing:
+        shown = ", ".join(str(i) for i in sorted(missing)[:5])
+        raise NotFoundError(f"Not a saved transaction: {shown}.")
+    return await repo.set_category(wanted, category_id)
