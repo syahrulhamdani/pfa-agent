@@ -63,6 +63,13 @@ export function Transactions() {
     )
   }
 
+  // With exactly one row ticked, offer to tick every row from the same merchant, which
+  // is the usual reason to change many at once (every Indomaret line, say).
+  const only = selectedIds.length === 1 ? data?.find((t) => t.id === selectedIds[0]) : undefined
+  const sameMerchant = only?.merchant
+    ? (data ?? []).filter((t) => t.merchant === only.merchant)
+    : []
+
   // Money out and money in are added up apart, and moves between the user's own
   // accounts are left out of both, so a card payment never counts twice.
   const totals = summarizeTransactions(data ?? [])
@@ -189,6 +196,15 @@ export function Transactions() {
                 >
                   Apply to selected
                 </button>
+                {sameMerchant.length > 1 && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setSelected(new Set(sameMerchant.map((t) => t.id)))}
+                  >
+                    Select all {sameMerchant.length} from {only?.merchant}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="link-button"
@@ -243,35 +259,14 @@ export function Transactions() {
                         )}
                       </td>
                       <td>
-                        <select
-                          className={`badge-select badge-${tx.direction}`}
-                          aria-label={`Money in or out for ${tx.merchant ?? 'transaction'}`}
-                          value={tx.direction}
-                          disabled={change.isPending}
-                          onChange={(e) =>
-                            apply([tx.id], { direction: e.target.value as 'in' | 'out' })
-                          }
-                        >
-                          <option value="out">↑ Money out</option>
-                          <option value="in">↓ Money in</option>
-                        </select>
+                        <span className={`badge badge-${tx.direction}`}>
+                          <span aria-hidden="true">
+                            {tx.direction === 'in' ? '↓' : '↑'}
+                          </span>
+                          {tx.direction === 'in' ? 'Money in' : 'Money out'}
+                        </span>
                       </td>
-                      <td>
-                        <select
-                          className="table-select"
-                          aria-label={`Category for ${tx.merchant ?? 'transaction'}`}
-                          value={tx.category ?? ''}
-                          disabled={change.isPending}
-                          onChange={(e) => apply([tx.id], { category: e.target.value })}
-                        >
-                          {tx.category === null && <option value="">No category</option>}
-                          {categories.data?.map((name) => (
-                            <option key={name} value={name}>
-                              {name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
+                      <td>{tx.category ?? '—'}</td>
                       <td>{tx.card ?? '—'}</td>
                       <td>{formatDate(tx.occurred_on)}</td>
                       <td className={`num amount-${tx.direction}`}>

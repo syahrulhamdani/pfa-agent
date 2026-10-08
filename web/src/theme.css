@@ -400,19 +400,6 @@ td.amount-out {
   color: var(--color-out);
 }
 
-/* The Type dropdown on each row looks like the badge but can be changed. */
-.badge-select {
-  min-width: 0;
-  height: 30px;
-  padding: 0 26px 0 12px;
-  border-radius: 999px;
-  border-width: 1px;
-  border-style: solid;
-  font-size: 13px;
-  font-weight: 700;
-  background-position: right 8px center;
-}
-
 tr.row-in {
   background: var(--color-in-row);
 }
@@ -426,16 +413,10 @@ tr.row-out > td:first-child {
 }
 
 /* Editing categories in the list */
-.table-select {
-  min-width: 150px;
-  height: 32px;
-  padding: 0 28px 0 8px;
-  font-size: 14px;
-  background-position: right 8px center;
-}
-
 .check-col {
-  width: 32px;
+  /* Clear of the 4px coloured stripe drawn on this cell's left edge. */
+  width: 44px;
+  padding-left: 14px;
   padding-right: 4px;
 }
 
@@ -444,6 +425,21 @@ tr.row-out > td:first-child {
   width: 16px;
   height: 16px;
   margin: 0;
+}
+
+.text-button {
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--color-accent-strong);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.text-button:hover:not(:disabled) {
+  filter: none;
+  color: var(--color-text);
 }
 
 .bulk-bar {

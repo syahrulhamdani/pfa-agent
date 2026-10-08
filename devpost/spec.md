@@ -70,7 +70,7 @@ Carried from `prd.md > Look and Feel`. Implementation direction:
 - Clean sans-serif system font stack, hierarchy through size and weight, not color.
 - Modular cards in a grid; generous white space; restrained, data-forward charts (one accent plus grays).
 - Copy tone: concise and professional, no filler or emoji-heavy chatter. Telegram messages follow the same tone.
-- Money in and money out are told apart by several cues at once, so none has to be noticed on its own: an arrow and the words "Money in" or "Money out" in a filled badge (a dropdown, so it can be changed), a + or − sign on the amount, a coloured stripe on the row's left edge, a light green tint on money-in rows, and green versus red amounts. Every text colour on its background is at least 4.5:1.
+- Money in and money out are told apart by several cues at once, so none has to be noticed on its own: an arrow and the words "Money in" or "Money out" in a filled badge, a + or − sign on the amount, a coloured stripe on the row's left edge, a light green tint on money-in rows, and green versus red amounts. Every text colour on its background is at least 4.5:1.
 
 ## Components
 
