@@ -92,7 +92,7 @@ Nodes: gather aggregates, budgets and goals → Flash Lite writes recommendation
 PRD ref: `prd.md > Weekly summary and recommendations`.
 
 ### Analytics service
-Async SQL aggregations for day, week, month, quarter and year: totals, category breakdown, budget remaining. Money out and money in are always aggregated separately; budgets and "spent" figures use money out only. Source of truth for every number the UI and the LLM show.
+Async SQL aggregations for day, week, month, quarter and year: totals, category breakdown, budget remaining. Money out and money in are always aggregated separately; budgets and "spent" figures use money out only. Movements between the user's own cards, accounts or pockets (category `Transfer`) are excluded from both spending and income, and stay listed and filterable; the statement prompt limits `Transfer` to such internal moves, so money sent to another person counts as spending. Source of truth for every number the UI and the LLM show.
 PRD ref: `prd.md > Web app: transactions and analytics`.
 
 ### Nudge scheduler

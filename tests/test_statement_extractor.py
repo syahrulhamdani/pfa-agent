@@ -132,3 +132,11 @@ async def test_a_failure_in_a_later_batch_fails_the_whole_statement():
     )
     with pytest.raises(LLMError):
         await GeminiStatementExtractor(model)(csv_bytes(150), "csv", CATEGORIES)
+
+
+async def test_the_prompt_limits_transfer_to_the_users_own_accounts():
+    model = QueueModel(ExtractedStatement(transactions=[line()]))
+    await GeminiStatementExtractor(model)(csv_bytes(2), "csv", CATEGORIES)
+    text = blocks_of(model)[0]["text"]
+    assert 'category "Transfer" only for money moved between the user\'s own' in text
+    assert "another person or a business is not a transfer" in text

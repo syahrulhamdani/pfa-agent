@@ -114,6 +114,10 @@ STATEMENT_PROMPT = (
     'amount is the absolute value as a positive number. Set direction to "out" for '
     'money spent or paid away, and to "in" for money received: salary, refunds and '
     "reversals, interest, transfers in, and payments made to a card account. "
+    'Use the category "Transfer" only for money moved between the user\'s own '
+    "cards, accounts or pockets, such as paying a card bill from a bank account or "
+    "topping up an e-wallet. Money sent to or received from another person or a "
+    "business is not a transfer: give it the category that fits best. "
     "Choose each category from this list only: {categories}."
 )
 
