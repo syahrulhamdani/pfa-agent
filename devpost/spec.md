@@ -109,7 +109,7 @@ A Telegram magic link with JWTs (PyJWT, HS256, signed with `AUTH_SECRET`). `/log
 PRD ref: `prd.md > The Core Journey` (step 6)
 
 ### Web app
-React pages: Today's transactions (landing), Dashboard, Budgets, Goals, and a banks/cards settings page. TanStack Query refetches every few seconds.
+React pages: Today's transactions (landing), Dashboard, Budgets, Goals, and a banks/cards settings page. TanStack Query refetches every few seconds. On the Transactions page the filter toolbar is sticky at the top (a summary of the active filters, with the controls opening in place and scrolling inside themselves if tall), and the bar for ticked rows plus its confirmation message are fixed at the bottom of the screen, with extra space below the list so they never hide the last rows. Figures scale to fit their cards.
 PRD ref: `prd.md > Screens and Layout`, `prd.md > Budgets`, `prd.md > Goals`.
 
 ## Data Model

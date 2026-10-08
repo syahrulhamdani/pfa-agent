@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { useCategories } from '../api/hooks'
-import { filterProblems, isPreset, NO_FILTERS } from '../filters'
+import { describeFilters, filterProblems, isPreset, NO_FILTERS } from '../filters'
 import type { DateBasis, DirectionFilter, Filters } from '../filters'
 
 interface Props {
@@ -11,6 +12,7 @@ export function FilterBar({ filters, onChange }: Props) {
   const categories = useCategories()
   const problems = filterProblems(filters)
   const invalid = problems.length > 0
+  const [open, setOpen] = useState(false)
 
   function set(patch: Partial<Filters>) {
     onChange({ ...filters, ...patch })
@@ -30,7 +32,42 @@ export function FilterBar({ filters, onChange }: Props) {
   }
 
   return (
-    <section className="card filters" aria-label="Filters">
+    <div className="filter-toolbar">
+      <div className="filter-summary">
+        <span className="muted">Showing</span>
+        {describeFilters(filters).map((part) => (
+          <span key={part} className="filter-chip">
+            {part}
+          </span>
+        ))}
+        <span className="filter-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            aria-expanded={open}
+            aria-controls="filter-panel"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? 'Hide filters' : 'Filters'}
+          </button>
+          {!isPreset(filters) && (
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => onChange(NO_FILTERS)}
+            >
+              Back to today
+            </button>
+          )}
+        </span>
+      </div>
+      {invalid && !open && (
+        <p className="error" role="alert">
+          {problems[0]} Open the filters to fix it.
+        </p>
+      )}
+      {open && (
+    <section id="filter-panel" className="card filters filter-panel" aria-label="Filters">
       <div className="form-row">
         <label>
           Date field
@@ -43,7 +80,7 @@ export function FilterBar({ filters, onChange }: Props) {
           </select>
         </label>
         <label>
-          From <span className="hint">YYYY-MM-DD</span>
+          From
           <input
             type="date"
             placeholder="YYYY-MM-DD"
@@ -53,7 +90,7 @@ export function FilterBar({ filters, onChange }: Props) {
           />
         </label>
         <label>
-          To <span className="hint">YYYY-MM-DD</span>
+          To
           <input
             type="date"
             placeholder="YYYY-MM-DD"
@@ -63,7 +100,7 @@ export function FilterBar({ filters, onChange }: Props) {
           />
         </label>
         <label>
-          Month <span className="hint">YYYY-MM</span>
+          Month
           <input
             type="month"
             placeholder="YYYY-MM"
@@ -135,11 +172,8 @@ export function FilterBar({ filters, onChange }: Props) {
         </div>
       )}
 
-      <div className="form-row">
-        <button type="button" onClick={() => onChange(NO_FILTERS)}>
-          {isPreset(filters) ? 'Showing today' : 'Back to today'}
-        </button>
-      </div>
     </section>
+      )}
+    </div>
   )
 }

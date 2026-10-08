@@ -145,6 +145,7 @@ a {
 }
 
 .stat-row {
+  align-items: start; /* cards hug their content instead of stretching to the tallest */
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space);
@@ -160,8 +161,16 @@ a {
 
 .stat-value {
   color: var(--color-accent-strong);
-  font-size: 28px;
+  /* Seven-digit amounts with decimals are wide: scale with the screen, never wrap. */
+  font-size: clamp(20px, 2.1vw, 24px);
   font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-row .card {
+  padding: 16px;
+  min-width: 0;
 }
 
 /* Table */
@@ -266,13 +275,6 @@ button:disabled {
 }
 
 /* Filters */
-.hint {
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 400;
-  margin-left: 4px;
-}
-
 .filters > * + * {
   margin-top: 16px;
 }
@@ -457,6 +459,84 @@ tr.row-out > td:first-child {
 
 .muted-value {
   color: var(--color-muted);
+}
+
+/* Pinned toolbar: the active filters stay in view while the list scrolls. */
+.filter-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  padding: 12px 0;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-chip {
+  padding: 2px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-subtle);
+  font-size: 13px;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.filter-panel {
+  margin-top: 12px;
+  max-height: calc(100vh - 150px); /* never taller than the screen; scrolls inside */
+  overflow-y: auto;
+}
+
+.secondary-button {
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+/* Actions after ticking rows stay at the bottom of the screen. */
+.floating {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: min(var(--content-width), calc(100% - 32px));
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.floating .bulk-bar {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+
+.toast {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--color-text);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.toast-error {
+  background: var(--color-danger);
+}
+
+.has-floating {
+  padding-bottom: 170px; /* so the fixed block never hides the last rows */
 }
 
 /* States */

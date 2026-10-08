@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useCategories, useChangeTransactions, useTransactions } from '../api/hooks'
 import { FilterBar } from '../components/FilterBar'
@@ -21,6 +21,12 @@ export function Transactions() {
   const [bulkCategory, setBulkCategory] = useState('')
   const [bulkDirection, setBulkDirection] = useState<'' | 'in' | 'out'>('')
   const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(null), 6000)
+    return () => clearTimeout(timer)
+  }, [notice])
 
   function changeFilters(next: Filters) {
     setParams(toSearchParams(next), { replace: true })
@@ -75,18 +81,96 @@ export function Transactions() {
   const totals = summarizeTransactions(data ?? [])
   const { moneyOut, moneyIn, net, transfers } = totals
 
+  // Everything the user acts on after ticking rows stays in reach at the bottom of the
+  // screen, so a long list never needs a scroll back to the top.
+  const hasFloating = Boolean(notice) || change.isError || selectedIds.length > 0
+  const floating = hasFloating && (
+    <div className="floating">
+      {notice && (
+        <p className="toast" role="status">
+          {notice}
+        </p>
+      )}
+      {change.isError && (
+        <p className="toast toast-error" role="alert">
+          Could not save the change: {change.error.message}
+        </p>
+      )}
+      {selectedIds.length > 0 && (
+        <section className="card bulk-bar" aria-label="Change selected transactions">
+          <strong>{selectedIds.length} selected</strong>
+          <label>
+            Move to
+            <select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)}>
+              <option value="">Keep category</option>
+              {categories.data?.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Mark as
+            <select
+              value={bulkDirection}
+              onChange={(e) => setBulkDirection(e.target.value as '' | 'in' | 'out')}
+            >
+              <option value="">Keep money in/out</option>
+              <option value="out">↑ Money out</option>
+              <option value="in">↓ Money in</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={(!bulkCategory && !bulkDirection) || change.isPending}
+            onClick={() =>
+              apply(selectedIds, {
+                ...(bulkCategory && { category: bulkCategory }),
+                ...(bulkDirection && { direction: bulkDirection }),
+              })
+            }
+          >
+            Apply to selected
+          </button>
+          {sameMerchant.length > 1 && (
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => setSelected(new Set(sameMerchant.map((t) => t.id)))}
+            >
+              Select all {sameMerchant.length} from {only?.merchant}
+            </button>
+          )}
+          {!allSelected && (
+            <button type="button" className="text-button" onClick={toggleAll}>
+              Select all {visibleIds.length} shown
+            </button>
+          )}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => setSelected(new Set())}
+          >
+            Clear selection
+          </button>
+        </section>
+      )}
+    </div>
+  )
+
   return (
     <>
       <div className="page-head">
         <h1>Transactions</h1>
         <p className="muted">
-          {preset
-            ? 'Transactions you confirmed today. Refreshes every few seconds.'
-            : 'Filtered transactions. Refreshes every few seconds.'}
+          {`${preset ? 'Transactions you confirmed today' : 'Filtered transactions'}${
+            data ? ` · ${data.length} shown` : ''
+          }. Refreshes every few seconds.`}
         </p>
       </div>
 
-      <div className="stack">
+      <div className={`stack${hasFloating ? ' has-floating' : ''}`}>
         <FilterBar filters={filters} onChange={changeFilters} />
 
         {valid && isPending && <p className="state">Loading…</p>}
@@ -137,83 +221,7 @@ export function Transactions() {
                   </div>
                 </div>
               )}
-              <div className="card">
-                <div className="stat-label">Transactions</div>
-                <div className="stat-value">{data.length}</div>
-              </div>
             </div>
-
-            {notice && (
-              <p className="notice" role="status">
-                {notice}
-              </p>
-            )}
-            {change.isError && (
-              <p className="error" role="alert">
-                Could not save the change: {change.error.message}
-              </p>
-            )}
-
-            {selectedIds.length > 0 && (
-              <section className="card bulk-bar" aria-label="Change selected transactions">
-                <strong>{selectedIds.length} selected</strong>
-                <label>
-                  Move to
-                  <select
-                    value={bulkCategory}
-                    onChange={(e) => setBulkCategory(e.target.value)}
-                  >
-                    <option value="">Keep category</option>
-                    {categories.data?.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Mark as
-                  <select
-                    value={bulkDirection}
-                    onChange={(e) =>
-                      setBulkDirection(e.target.value as '' | 'in' | 'out')
-                    }
-                  >
-                    <option value="">Keep money in/out</option>
-                    <option value="out">↑ Money out</option>
-                    <option value="in">↓ Money in</option>
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  disabled={(!bulkCategory && !bulkDirection) || change.isPending}
-                  onClick={() =>
-                    apply(selectedIds, {
-                      ...(bulkCategory && { category: bulkCategory }),
-                      ...(bulkDirection && { direction: bulkDirection }),
-                    })
-                  }
-                >
-                  Apply to selected
-                </button>
-                {sameMerchant.length > 1 && (
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={() => setSelected(new Set(sameMerchant.map((t) => t.id)))}
-                  >
-                    Select all {sameMerchant.length} from {only?.merchant}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => setSelected(new Set())}
-                >
-                  Clear selection
-                </button>
-              </section>
-            )}
 
             <div className="card table-wrap">
               <table>
@@ -280,6 +288,7 @@ export function Transactions() {
           </>
         )}
       </div>
+      {floating}
     </>
   )
 }

@@ -124,3 +124,24 @@ export function filterProblems(filters: Filters): string[] {
   }
   return problems
 }
+
+// A short, readable list of what the filters currently select, for the toolbar that
+// stays visible while the page is scrolled.
+export function describeFilters(filters: Filters): string[] {
+  if (isPreset(filters)) return ['Confirmed today']
+  const parts: string[] = []
+  const dateLabel = filters.basis === 'confirmed' ? 'Confirmed' : 'Receipt date'
+  if (filters.month) {
+    parts.push(`${dateLabel} in ${filters.month}`)
+  } else if (filters.from || filters.to) {
+    parts.push(`${dateLabel} ${filters.from || '…'} to ${filters.to || '…'}`)
+  }
+  if (filters.min && filters.max) parts.push(`Amount ${filters.min} to ${filters.max}`)
+  else if (filters.min) parts.push(`Amount from ${filters.min}`)
+  else if (filters.max) parts.push(`Amount up to ${filters.max}`)
+  if (filters.direction) {
+    parts.push(filters.direction === 'in' ? 'Money in' : 'Money out')
+  }
+  if (filters.categories.length > 0) parts.push(filters.categories.join(', '))
+  return parts
+}
