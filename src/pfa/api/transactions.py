@@ -50,6 +50,7 @@ async def list_transactions(
     max_amount: Annotated[Decimal | None, Query(ge=0)] = None,
     category: Annotated[list[str] | None, Query()] = None,
     direction: Direction | None = None,
+    is_transfer: bool | None = None,
 ):
     """Lists confirmed transactions with optional filters, newest first.
 
@@ -57,6 +58,8 @@ async def list_transactions(
     receipt date (`occurred`) or the day it was confirmed (`confirmed`). `month`
     (YYYY-MM) is a shorthand for the first to last day and cannot be combined with
     `date_from` or `date_to`. Repeat `category` to match several categories.
+    `is_transfer` true lists only moves between the user's own accounts (not counted),
+    false only what is counted.
     """
     if month is not None:
         if date_from or date_to:
@@ -76,6 +79,7 @@ async def list_transactions(
             max_amount=max_amount,
             categories=category or [],
             direction=direction,
+            is_transfer=is_transfer,
         )
     except ValidationError as exc:
         message = "; ".join(
@@ -87,10 +91,10 @@ async def list_transactions(
 
 @router.patch("/transactions", response_model=TransactionsChanged)
 async def change_saved_transactions(body: TransactionChange, session: Session):
-    """Changes the category and/or direction of one or many saved transactions."""
+    """Changes the category, direction and/or transfer flag of saved transactions."""
     try:
         updated = await change_transactions(
-            session, body.ids, body.category, body.direction
+            session, body.ids, body.category, body.direction, body.is_transfer
         )
     except NotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, exc.message) from None

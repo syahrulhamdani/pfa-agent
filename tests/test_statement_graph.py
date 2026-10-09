@@ -590,6 +590,8 @@ async def test_transfers_are_still_saved_when_the_statement_is_confirmed(
         t.merchant: (name, t.status) for t, name in await transactions(session_factory)
     }
     assert saved["Top up e-wallet"] == ("Transfer", "confirmed")
+    flags = {t.merchant: t.is_transfer for t, _ in await transactions(session_factory)}
+    assert flags == {"Indomaret": False, "Top up e-wallet": True}
 
 
 async def test_money_sent_to_a_person_or_merchant_still_counts_as_spending(

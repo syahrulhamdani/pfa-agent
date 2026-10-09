@@ -1,6 +1,9 @@
 // Transaction filters, kept in the URL so a filtered view survives a refresh.
 export type DateBasis = 'occurred' | 'confirmed'
 export type DirectionFilter = '' | 'in' | 'out' // '' means both
+// Moves between the user's own accounts: '' lists everything, 'transfer' only those,
+// 'counted' only what counts as spending or income.
+export type CountingFilter = '' | 'transfer' | 'counted'
 
 export interface Filters {
   basis: DateBasis
@@ -10,6 +13,7 @@ export interface Filters {
   min: string
   max: string
   direction: DirectionFilter
+  counting: CountingFilter
   categories: string[]
 }
 
@@ -21,11 +25,16 @@ export const NO_FILTERS: Filters = {
   min: '',
   max: '',
   direction: '',
+  counting: '',
   categories: [],
 }
 
 function toDirection(value: string | null): DirectionFilter {
   return value === 'in' || value === 'out' ? value : ''
+}
+
+function toCounting(value: string | null): CountingFilter {
+  return value === 'transfer' || value === 'counted' ? value : ''
 }
 
 export function parseFilters(params: URLSearchParams): Filters {
@@ -37,6 +46,7 @@ export function parseFilters(params: URLSearchParams): Filters {
     min: params.get('min') ?? '',
     max: params.get('max') ?? '',
     direction: toDirection(params.get('direction')),
+    counting: toCounting(params.get('counting')),
     categories: params.getAll('category'),
   }
 }
@@ -50,6 +60,7 @@ export function toSearchParams(filters: Filters): URLSearchParams {
   if (filters.min) params.set('min', filters.min)
   if (filters.max) params.set('max', filters.max)
   if (filters.direction) params.set('direction', filters.direction)
+  if (filters.counting) params.set('counting', filters.counting)
   filters.categories.forEach((name) => params.append('category', name))
   return params
 }
@@ -64,6 +75,7 @@ export function isPreset(filters: Filters): boolean {
     !filters.min &&
     !filters.max &&
     !filters.direction &&
+    !filters.counting &&
     filters.categories.length === 0
   )
 }
@@ -78,6 +90,7 @@ export function toApiQuery(filters: Filters): string {
   if (filters.min) params.set('min_amount', filters.min)
   if (filters.max) params.set('max_amount', filters.max)
   if (filters.direction) params.set('direction', filters.direction)
+  if (filters.counting) params.set('is_transfer', String(filters.counting === 'transfer'))
   filters.categories.forEach((name) => params.append('category', name))
   return params.toString()
 }
@@ -141,6 +154,11 @@ export function describeFilters(filters: Filters): string[] {
   else if (filters.max) parts.push(`Amount up to ${filters.max}`)
   if (filters.direction) {
     parts.push(filters.direction === 'in' ? 'Money in' : 'Money out')
+  }
+  if (filters.counting) {
+    parts.push(
+      filters.counting === 'transfer' ? 'Between your accounts only' : 'Counted only',
+    )
   }
   if (filters.categories.length > 0) parts.push(filters.categories.join(', '))
   return parts

@@ -3,8 +3,8 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useLogout } from '../api/hooks'
 
 const LINKS = [
-  { to: '/transactions', label: 'Transactions' },
   { to: '/dashboard', label: 'Dashboard' },
+  { to: '/transactions', label: 'Transactions' },
   { to: '/budgets', label: 'Budgets' },
   { to: '/goals', label: 'Goals' },
   { to: '/settings', label: 'Banks & cards' },

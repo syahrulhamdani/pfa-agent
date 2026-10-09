@@ -29,3 +29,47 @@ export interface Card {
 export interface TransactionsChanged {
   updated: number
 }
+
+export type PeriodName = 'day' | 'week' | 'month' | 'quarter' | 'year'
+
+export interface MoneyTotal {
+  total: string
+  count: number
+}
+
+export interface CategoryShare {
+  category: string
+  total: string
+  count: number
+  // A fraction of that side's total: 0.25 is a quarter.
+  share: number
+}
+
+export interface SeriesPoint {
+  start: string
+  money_out: string
+  money_in: string
+}
+
+export interface Analytics {
+  period: PeriodName
+  start: string
+  end: string
+  bucket: 'day' | 'week' | 'month' | null
+  money_out: MoneyTotal
+  money_in: MoneyTotal
+  net: string
+  // Moves between the user's own accounts: reported apart, in neither total.
+  transfers: MoneyTotal
+  out_by_category: CategoryShare[]
+  in_by_category: CategoryShare[]
+  series: SeriesPoint[]
+  previous: {
+    start: string
+    end: string
+    money_out: string
+    money_in: string
+    money_out_change: number | null
+    money_in_change: number | null
+  }
+}

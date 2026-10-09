@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useCategories, useChangeTransactions, useTransactions } from '../api/hooks'
 import { FilterBar } from '../components/FilterBar'
 import { filterProblems, isPreset, parseFilters, toSearchParams } from '../filters'
 import type { Filters } from '../filters'
 import { formatAmount, formatDate, formatSigned } from '../format'
 import { summarizeTransactions } from '../totals'
+
+function countLabel(count: number): string {
+  return `${count} ${count === 1 ? 'transaction' : 'transactions'}`
+}
 
 export function Transactions() {
   const [params, setParams] = useSearchParams()
@@ -20,6 +24,7 @@ export function Transactions() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [bulkCategory, setBulkCategory] = useState('')
   const [bulkDirection, setBulkDirection] = useState<'' | 'in' | 'out'>('')
+  const [bulkCounting, setBulkCounting] = useState<'' | 'transfer' | 'counted'>('')
   const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
@@ -48,8 +53,11 @@ export function Transactions() {
     setSelected(allSelected ? new Set() : new Set(visibleIds))
   }
 
-  // One request changes the category, the direction, or both, for one row or many.
-  function apply(ids: number[], changes: { category?: string; direction?: 'in' | 'out' }) {
+  // One request changes the category, direction and/or transfer flag, for one row or many.
+  function apply(
+    ids: number[],
+    changes: { category?: string; direction?: 'in' | 'out'; is_transfer?: boolean },
+  ) {
     setNotice(null)
     change.mutate(
       { ids, ...changes },
@@ -59,11 +67,14 @@ export function Transactions() {
           const what = [
             changes.category && `category ${changes.category}`,
             changes.direction && `marked as money ${changes.direction}`,
+            changes.is_transfer !== undefined &&
+              (changes.is_transfer ? 'between your accounts, not counted' : 'counted again'),
           ].filter(Boolean)
           setNotice(`Updated ${result.updated} ${noun}: ${what.join(', ')}.`)
           setSelected(new Set())
           setBulkCategory('')
           setBulkDirection('')
+          setBulkCounting('')
         },
       },
     )
@@ -80,6 +91,12 @@ export function Transactions() {
   // accounts are left out of both, so a card payment never counts twice.
   const totals = summarizeTransactions(data ?? [])
   const { moneyOut, moneyIn, net, transfers } = totals
+  // Reviewing the uncounted ones keeps the other filters; on that view the same link
+  // goes back to everything.
+  const reviewTransfersLink = `?${toSearchParams({
+    ...filters,
+    counting: filters.counting === 'transfer' ? '' : 'transfer',
+  })}`
 
   // Everything the user acts on after ticking rows stays in reach at the bottom of the
   // screen, so a long list never needs a scroll back to the top.
@@ -121,13 +138,25 @@ export function Transactions() {
               <option value="in">↓ Money in</option>
             </select>
           </label>
+          <label>
+            Counting
+            <select
+              value={bulkCounting}
+              onChange={(e) => setBulkCounting(e.target.value as '' | 'transfer' | 'counted')}
+            >
+              <option value="">Keep as is</option>
+              <option value="transfer">Between my accounts (not counted)</option>
+              <option value="counted">Counted as spending or income</option>
+            </select>
+          </label>
           <button
             type="button"
-            disabled={(!bulkCategory && !bulkDirection) || change.isPending}
+            disabled={(!bulkCategory && !bulkDirection && !bulkCounting) || change.isPending}
             onClick={() =>
               apply(selectedIds, {
                 ...(bulkCategory && { category: bulkCategory }),
                 ...(bulkDirection && { direction: bulkDirection }),
+                ...(bulkCounting && { is_transfer: bulkCounting === 'transfer' }),
               })
             }
           >
@@ -196,12 +225,14 @@ export function Transactions() {
                 <div className="stat-value amount-out">
                   {formatAmount(String(moneyOut))}
                 </div>
+                <div className="muted">{countLabel(totals.moneyOutCount)}</div>
               </div>
               <div className="card">
                 <div className="stat-label">Money in</div>
                 <div className="stat-value amount-in">
                   {formatAmount(String(moneyIn))}
                 </div>
+                <div className="muted">{countLabel(totals.moneyInCount)}</div>
               </div>
               <div className="card">
                 <div className="stat-label">Net</div>
@@ -209,15 +240,19 @@ export function Transactions() {
                   {net > 0 ? '+' : net < 0 ? '−' : ''}
                   {formatAmount(String(Math.abs(net)))}
                 </div>
+                <div className="muted">money in minus out</div>
               </div>
               {transfers.count > 0 && (
                 <div className="card">
-                  <div className="stat-label">Between your accounts</div>
+                  <div className="stat-label">Between accounts</div>
                   <div className="stat-value muted-value">
                     {formatAmount(String(transfers.total))}
                   </div>
                   <div className="muted">
-                    {transfers.count} not counted as spending or income
+                    {transfers.count} not counted ·{' '}
+                    <Link to={reviewTransfersLink}>
+                      {filters.counting === 'transfer' ? 'Show all' : 'Review'}
+                    </Link>
                   </div>
                 </div>
               )}
@@ -241,8 +276,8 @@ export function Transactions() {
                     <th>Merchant</th>
                     <th>Type</th>
                     <th>Category</th>
-                    <th>Card</th>
-                    <th>Date</th>
+                    <th className="nowrap">Card</th>
+                    <th className="nowrap">Date</th>
                     <th className="num">Amount</th>
                   </tr>
                 </thead>
@@ -275,8 +310,8 @@ export function Transactions() {
                         </span>
                       </td>
                       <td>{tx.category ?? '—'}</td>
-                      <td>{tx.card ?? '—'}</td>
-                      <td>{formatDate(tx.occurred_on)}</td>
+                      <td className="nowrap">{tx.card ?? '—'}</td>
+                      <td className="nowrap">{formatDate(tx.occurred_on)}</td>
                       <td className={`num amount-${tx.direction}`}>
                         {formatSigned(tx.amount, tx.direction)}
                       </td>

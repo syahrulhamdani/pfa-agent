@@ -217,6 +217,7 @@ class TransactionRepository:
         max_amount: Decimal | None = None,
         category_names: list[str] | None = None,
         direction: Direction | None = None,
+        is_transfer: bool | None = None,
         limit: int = 500,
     ) -> list[tuple[Transaction, str | None, str | None]]:
         """Searches confirmed transactions, newest confirmation first.
@@ -244,6 +245,8 @@ class TransactionRepository:
             conditions.append(Category.name.in_(category_names))
         if direction is not None:
             conditions.append(Transaction.direction == direction.value)
+        if is_transfer is not None:
+            conditions.append(Transaction.is_transfer.is_(is_transfer))
         rows = await self._session.execute(
             select(Transaction, Category.name, Bank.name, Card.name, Card.last4)
             .outerjoin(Category, Category.id == Transaction.category_id)

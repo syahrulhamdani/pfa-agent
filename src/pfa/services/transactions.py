@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pfa.core.exceptions import NotFoundError
-from pfa.models.finance import TRANSFER_CATEGORY, Direction
+from pfa.models.finance import Direction
 from pfa.repository.finance import CategoryRepository, TransactionRepository
 from pfa.schemas.transactions import DateBasis, TransactionFilter, TransactionRead
 
@@ -29,7 +29,7 @@ def _to_read(rows) -> list[TransactionRead]:
             card=card,
             description=tx.description,
             direction=Direction(tx.direction),
-            is_transfer=(category or "").casefold() == TRANSFER_CATEGORY.casefold(),
+            is_transfer=tx.is_transfer,
             confirmed_at=tx.confirmed_at,
         )
         for tx, category, card in rows
@@ -82,6 +82,7 @@ async def search_transactions(
         max_amount=flt.max_amount,
         category_names=flt.categories,
         direction=flt.direction,
+        is_transfer=flt.is_transfer,
         **kwargs,
     )
     return _to_read(rows)
@@ -92,8 +93,9 @@ async def change_transactions(
     ids: list[int],
     category_name: str | None = None,
     direction: Direction | None = None,
+    is_transfer: bool | None = None,
 ) -> int:
-    """Changes the category and/or the direction of saved transactions.
+    """Changes the category, direction and/or transfer flag of saved transactions.
 
     All or nothing: if the category or any transaction is unknown (or not saved
     yet), nothing changes. Changing a past transaction also changes how it counts in
@@ -106,6 +108,9 @@ async def change_transactions(
         category_name: The target category, matched ignoring case, or None to leave
             the category alone.
         direction: Whether the money came in or went out, or None to leave it alone.
+        is_transfer: True to mark them as moves between the user's own accounts (not
+            counted), False to count them again, or None to leave it alone. The
+            category is never touched by this.
 
     Returns:
         How many transactions were changed.
@@ -123,8 +128,10 @@ async def change_transactions(
         values["category_id"] = category_id
     if direction is not None:
         values["direction"] = direction.value
+    if is_transfer is not None:
+        values["is_transfer"] = is_transfer
     if not values:
-        raise NotFoundError("Choose a category, a direction, or both.")
+        raise NotFoundError("Choose something to change.")
     repo = TransactionRepository(session)
     missing = set(wanted) - await repo.confirmed_ids(wanted)
     if missing:

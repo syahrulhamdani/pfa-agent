@@ -5,6 +5,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Time,
+    false,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -43,8 +45,9 @@ class Direction(enum.StrEnum):
     IN = "in"
 
 
-# Money moved between the user's own cards, accounts or pockets. Transactions in this
-# category are listed but never counted as spending or income.
+# The category a statement line gets when the model sees money moved between the
+# user's own cards, accounts or pockets. It only sets the transfer flag at that moment;
+# after that the category and the flag are independent.
 TRANSFER_CATEGORY = "Transfer"
 
 
@@ -116,6 +119,11 @@ class Transaction(Base):
     # The amount is always positive; the direction says whether it came in or went out.
     direction: Mapped[str] = mapped_column(
         String(3), default=Direction.OUT.value, server_default=Direction.OUT.value
+    )
+    # A move between the user's own cards, accounts or pockets: listed, but never
+    # counted as spending or income. Separate from the category, which is kept.
+    is_transfer: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
     )
     status: Mapped[str] = mapped_column(
         String(20), default=TransactionStatus.PENDING.value

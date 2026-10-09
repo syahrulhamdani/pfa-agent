@@ -15,7 +15,7 @@ Source: `scope.md > The Unique Kernel`, `scope.md > The Core Loop`, `scope.md > 
 3. While it processes, the user can keep chatting: upload more, or casually ask for recommendations and insights.
 4. When processing finishes, pfa replies **to that specific upload message** with the extracted data and a request to confirm.
 5. The user confirms (or corrects). Only confirmed data is saved and aggregated.
-6. pfa's reply includes a single-use sign-in link to the web app, valid for a few minutes. Opening it signs the user in for a week and lands on the **Today's transactions** screen, from which the user navigates everywhere else: aggregated data, budgets, goals, insights. Sending `/login` to pfa at any time returns a fresh link, and `/signout` ends every web session and invalidates unused links. pfa also messages the user when a link is used, so an unexpected sign-in is noticed. Without a session, the web app only shows how to get one.
+6. pfa's reply includes a single-use sign-in link to the web app, valid for a few minutes. Opening it signs the user in for a week and lands on the **Dashboard**, from which the user navigates everywhere else: aggregated data, budgets, goals, insights. Sending `/login` to pfa at any time returns a fresh link, and `/signout` ends every web session and invalidates unused links. pfa also messages the user when a link is used, so an unexpected sign-in is noticed. Without a session, the web app only shows how to get one.
 7. In the web app the user explores aggregates and manages budgets and goals; changes show up in real time.
 8. Between uploads, pfa nudges the user in daily time slots to upload receipts. The user uploads, or ignores the nudge.
 9. At the start of each week, pfa sends a short Monday summary on Telegram with a link to the dashboard; the full summary is also in the web app.
@@ -29,8 +29,8 @@ Two surfaces, one product.
 **Telegram chat** (primary interface): a single conversation with pfa. It handles uploads, confirmations, casual questions and every proactive message (nudges, Monday summary).
 
 **Web app** (reached from links in Telegram), with navigation from the landing screen to:
-- **Today's transactions** (landing screen): the day's confirmed transactions by default, with money out, money in and the net shown apart. The list can be filtered by receipt date or confirmation date (range or month), amount range categories and direction (money in, money out or both); clearing the filters returns to today.
-- **Dashboard / analytics**: aggregated data for past periods, category stats, the weekly summary, and quarterly and yearly insights.
+- **Today's transactions** (second in the menu): the day's confirmed transactions by default, with money out, money in and the net shown apart. The list can be filtered by receipt date or confirmation date (range or month), amount range, categories, direction (money in, money out or both) and counting (everything, only moves between the user's own accounts, or only what is counted); clearing the filters returns to today.
+- **Dashboard / analytics** (landing screen, first in the menu): aggregated data for past periods, category stats, the weekly summary, and quarterly and yearly insights. It can be viewed by day, week, month, quarter or year, stepping back and forward through time, and each view is compared with the one before it. It shows money out, money in, the net and the moves between the user's own accounts (not counted) apart, a chart of money out, money in, or both side by side over the period (money out is shown first and on its own by default, so a salary never flattens a month of spending), and where the money went and came from by category, each linking to the matching transactions. Periods go by the date on the receipt; weeks run Monday to Sunday and quarters are calendar quarters.
 - **Budgets**: per-category monthly budgets, editable, with version history.
 - **Goals**: savings goals with target amount and date.
 
@@ -74,15 +74,15 @@ Source: `scope.md > The POC Boundary`.
   - [ ] If account/card is missing, pfa asks me for it before saving.
 
 ### Web app: transactions and analytics
-- Landing on **Today's transactions** from the Telegram link.
+- Landing on the **Dashboard** from the Telegram link, with Today's transactions one click away.
 - Aggregated data and category stats update in real time as confirmed data arrives.
 - Quarterly and yearly insights available alongside weekly ones (Assumption: on the dashboard).
-- Moves between the user's own cards, accounts or pockets (category **Transfer**) are shown but never counted as spending or income, so paying a card bill does not count twice. Money sent to another person or a business is **not** a transfer and counts as spending. On a statement, pfa lists transfers on their own line before confirming so the user can check them.
+- Moves between the user's own cards, accounts or pockets are flagged as transfers (a flag of their own on each transaction, separate from the category, which is kept). They are shown but never counted as spending or income, so paying a card bill does not count twice. The "Between accounts" card on the transactions page and the dashboard says how many were left out and links to a list of exactly those, so they can be reviewed and corrected. Money sent to another person or a business is **not** a transfer and counts as spending. On a statement, pfa flags the lines it recognises as transfers and lists them on their own line before confirming so the user can check them.
 - On a long list the user never has to scroll back up: the active filters stay pinned at the top as a slim summary whose "Filters" button opens the full controls in place, and the bar for changing ticked rows (with its confirmation message and "select all shown") stays at the bottom of the screen.
-- The category and the direction (money in or money out) of any saved transaction can be changed in the web app by ticking one or more rows and using the bar that appears; with one row ticked, a button selects every row from the same merchant. Changing a category into or out of Transfer changes whether it is counted. Direction matters most for moves between the user's own pockets, where one side is money out and the other money in. The amount is never changed. The category list itself is still edited in the configuration file.
+- The category and the direction (money in or money out) of any saved transaction can be changed in the web app by ticking one or more rows and using the bar that appears; with one row ticked, a button selects every row from the same merchant. A third control on the same bar, "Counting", flags the ticked rows as between the user's own accounts or counts them again; it never changes their category. Direction matters most for moves between the user's own pockets, where one side is money out and the other money in. The amount is never changed. The category list itself is still edited in the configuration file.
 
 - As the user, I want to land on today's transactions from the link so that I can see what I just uploaded.
-  - [ ] Clicking the link in pfa's reply opens Today's transactions, showing the just-confirmed transaction.
+  - [ ] Clicking the link in pfa's reply opens the Dashboard, whose current-month figures include the just-confirmed transaction; Transactions, next in the menu, lists it.
   - [ ] I can navigate from there to dashboard, budgets and goals.
 
 ### Budgets
@@ -143,7 +143,7 @@ Source: `scope.md > The Unique Kernel`.
 - Required fields: merchant, amount, date, category, account/card; description optional and prefilled.
 - Budget is per category per month, editable and versioned.
 - Goal is a savings target with amount and date.
-- Landing screen is Today's transactions; everything else is one navigation step away.
+- Landing screen is the Dashboard (first in the menu), with Transactions next; everything else is one navigation step away. Changed from Today's transactions at the learner's request.
 - Portfolios excluded from the PoC and moved to later — reduces build size.
 - Look and Feel follows the Deloitte AI & Data page theme.
 - Monday summary is short, with a link to the dashboard.

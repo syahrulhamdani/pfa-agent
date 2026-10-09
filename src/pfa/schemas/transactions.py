@@ -64,6 +64,8 @@ class TransactionFilter(BaseModel):
     max_amount: Decimal | None = Field(None, ge=0)
     categories: list[str] = Field(default_factory=list)
     direction: Direction | None = None  # None means money in and money out
+    # True: only moves between the user's own accounts. False: only what is counted.
+    is_transfer: bool | None = None
 
     @model_validator(mode="after")
     def _ranges_make_sense(self) -> "TransactionFilter":
@@ -79,16 +81,21 @@ class TransactionFilter(BaseModel):
 
 
 class TransactionChange(BaseModel):
-    """A request to change saved transactions: their category, direction, or both."""
+    """A request to change saved transactions: category, direction, transfer flag."""
 
     ids: list[int] = Field(min_length=1, max_length=500)
     category: str | None = Field(None, min_length=1, max_length=50)
     direction: Direction | None = None
+    is_transfer: bool | None = None
 
     @model_validator(mode="after")
     def _something_to_change(self) -> "TransactionChange":
-        if self.category is None and self.direction is None:
-            raise ValueError("choose a category, a direction, or both")
+        if (
+            self.category is None
+            and self.direction is None
+            and self.is_transfer is None
+        ):
+            raise ValueError("choose a category, a direction or a transfer flag")
         return self
 
 

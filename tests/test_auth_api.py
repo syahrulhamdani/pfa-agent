@@ -35,6 +35,13 @@ async def exchange(client, token):
 # --- issuing a link ---
 
 
+async def test_a_link_lands_on_the_dashboard_unless_told_otherwise(
+    session_factory, api_settings
+):
+    link = await issue_login_link(session_factory, api_settings)
+    assert parse_qs(urlparse(link).query)["next"] == ["/dashboard"]
+
+
 async def test_link_points_at_the_web_app_and_records_the_token(
     session_factory, api_settings
 ):

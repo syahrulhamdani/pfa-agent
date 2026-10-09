@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useCategories } from '../api/hooks'
 import { describeFilters, filterProblems, isPreset, NO_FILTERS } from '../filters'
-import type { DateBasis, DirectionFilter, Filters } from '../filters'
+import type { CountingFilter, DateBasis, DirectionFilter, Filters } from '../filters'
 
 interface Props {
   filters: Filters
@@ -122,6 +122,17 @@ export function FilterBar({ filters, onChange }: Props) {
             <option value="">Money in and out</option>
             <option value="out">Money out</option>
             <option value="in">Money in</option>
+          </select>
+        </label>
+        <label>
+          Counting
+          <select
+            value={filters.counting}
+            onChange={(e) => set({ counting: e.target.value as CountingFilter })}
+          >
+            <option value="">Everything</option>
+            <option value="transfer">Between my accounts only</option>
+            <option value="counted">Counted only</option>
           </select>
         </label>
         <label>

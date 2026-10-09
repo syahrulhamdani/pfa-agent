@@ -316,6 +316,10 @@ def build_extraction_graph(
                         "amount": row.amount,
                         "occurred_on": row.occurred_on,
                         "direction": row.direction.value,
+                        # The model's Transfer label flags the line once; after that
+                        # the flag and the category are independent.
+                        "is_transfer": (row.category or "").casefold()
+                        == TRANSFER_CATEGORY.casefold(),
                         "category_id": by_name.get(
                             (row.category or "").casefold(), fallback
                         ),
@@ -333,16 +337,10 @@ def build_extraction_graph(
             )
             cards = await CardRepository(session).list_options()
             card = next((c for c in cards if c.id == card_id), None)
-            categories = await CategoryRepository(session).list_all()
-            transfer_ids = {
-                c.id
-                for c in categories
-                if c.name.casefold() == TRANSFER_CATEGORY.casefold()
-            }
             # Moves between the user's own accounts are listed apart: they are neither
             # spending nor income.
-            transfers = [t for t in keep if t.category_id in transfer_ids]
-            counted = [t for t in keep if t.category_id not in transfer_ids]
+            transfers = [t for t in keep if t.is_transfer]
+            counted = [t for t in keep if not t.is_transfer]
             totals = summarize_by_direction(
                 (Direction(t.direction), t.amount) for t in counted
             )

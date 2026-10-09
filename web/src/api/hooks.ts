@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import { isPreset, toApiQuery } from '../filters'
 import type { Filters } from '../filters'
-import type { Bank, Card, Transaction, TransactionsChanged } from './types'
+import type { Analytics, Bank, Card, Transaction, TransactionsChanged } from './types'
 
 export function useSession() {
   return useQuery({
@@ -76,7 +76,7 @@ export function useCreateCard() {
   })
 }
 
-// Changes the category and/or direction of saved transactions; the lists then reload.
+// Changes the category, direction and/or transfer flag of saved transactions; the lists then reload.
 export function useChangeTransactions() {
   const client = useQueryClient()
   return useMutation({
@@ -84,11 +84,28 @@ export function useChangeTransactions() {
       ids: number[]
       category?: string
       direction?: 'in' | 'out'
+      is_transfer?: boolean
     }) =>
       api<TransactionsChanged>('/transactions', {
         method: 'PATCH',
         body: JSON.stringify(input),
       }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['transactions'] }),
+    // The dashboard adds up the same transactions, so it reloads too.
+    onSuccess: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: ['transactions'] }),
+        client.invalidateQueries({ queryKey: ['analytics'] }),
+      ]),
+  })
+}
+
+// The dashboard for the period containing `date` (today when null).
+export function useAnalytics(period: string, date: string | null) {
+  const query = new URLSearchParams({ period })
+  if (date) query.set('date', date)
+  return useQuery({
+    queryKey: ['analytics', period, date ?? 'today'],
+    queryFn: () => api<Analytics>(`/analytics?${query.toString()}`),
+    refetchInterval: LIVE_REFETCH_MS,
   })
 }

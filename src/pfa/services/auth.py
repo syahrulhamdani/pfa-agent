@@ -76,7 +76,7 @@ def decode_token(secret: str, token: str, expected: TokenType) -> dict[str, Any]
 async def issue_login_link(
     session_factory: async_sessionmaker[AsyncSession],
     settings: Settings,
-    next_path: str = "/transactions/today",
+    next_path: str = "/dashboard",
     now: datetime | None = None,
 ) -> str:
     """Creates a single-use sign-in URL for the web app.
