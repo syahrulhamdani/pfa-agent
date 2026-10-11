@@ -35,6 +35,8 @@ FIELD_LABELS = {
 # What a valid value looks like. Without an entry, the validator's own text is used.
 FIELD_HINTS = {
     "month": "use the format YYYY-MM, for example 2026-10",
+    "from_month": "use the format YYYY-MM, for example 2026-10",
+    "to_month": "use the format YYYY-MM, for example 2026-11",
     "date_from": "use the format YYYY-MM-DD, for example 2026-10-05",
     "date_to": "use the format YYYY-MM-DD, for example 2026-10-05",
     "min_amount": "enter a number that is not negative, for example 25000",

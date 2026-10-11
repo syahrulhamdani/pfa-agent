@@ -5,12 +5,14 @@ import {
   useBudgetHistory,
   useBudgets,
   useCategories,
+  useCopyBudgets,
   useSetBudget,
 } from '../api/hooks'
 import type { BudgetItem } from '../api/types'
 import {
   barWidth,
   budgetState,
+  copyMessage,
   monthLabel,
   parseMonth,
   percentUsed,
@@ -241,8 +243,11 @@ export function Budgets() {
   const [params, setParams] = useSearchParams()
   const month = parseMonth(params.get('month'))
   const { data, isPending, isError, error } = useBudgets(month)
+  const copy = useCopyBudgets()
+  const previous = shiftMonth(month, -1)
 
   function go(next: string) {
+    copy.reset() // the message belongs to the month it was shown for
     setParams(next === currentMonth() ? {} : { month: next })
   }
 
@@ -261,6 +266,14 @@ export function Budgets() {
 
       <div className="stack">
       <div className="dash-toolbar card">
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={copy.isPending}
+          onClick={() => copy.mutate({ from_month: previous, to_month: month })}
+        >
+          Copy budgets from {monthLabel(previous)}
+        </button>
         <div className="period-nav">
           <button
             type="button"
@@ -287,6 +300,16 @@ export function Budgets() {
         </div>
       </div>
 
+      {copy.isSuccess && (
+        <p className="toast" role="status">
+          {copyMessage(copy.data, monthLabel(previous))}
+        </p>
+      )}
+      {copy.isError && (
+        <p className="error" role="alert">
+          Could not copy: {copy.error.message}
+        </p>
+      )}
       {isPending && <p className="state">Loading…</p>}
       {isError && (
         <p className="state error" role="alert">

@@ -18,6 +18,7 @@ from pfa.repository.budgets import BudgetRepository
 from pfa.repository.finance import CategoryRepository
 from pfa.schemas.budgets import (
     BudgetRead,
+    BudgetsCopied,
     BudgetsRead,
     BudgetVersionRead,
 )
@@ -128,6 +129,34 @@ async def set_budget(
         created_at=saved.created_at,
         current=True,
     )
+
+
+async def copy_budgets(
+    session: AsyncSession, source: date, target: date
+) -> BudgetsCopied:
+    """Copies the current budgets of one month into another.
+
+    Only the current (highest) version of each source budget is copied, as version 1
+    of the target. A category that already has a budget in the target month is left
+    exactly as it is, so copying twice, or after editing, never overwrites anything.
+
+    Args:
+        session: Database session.
+        source: The first day of the month to copy from.
+        target: The first day of the month to copy into.
+
+    Returns:
+        How many budgets were created and how many categories were skipped.
+    """
+    repo = BudgetRepository(session)
+    rows = [v for v, _ in await repo.current_through(source) if v.month == source]
+    # Read everything before writing: each write commits and expires loaded rows.
+    wanted = [(v.category_id, v.amount) for v in rows]
+    copied = 0
+    for category_id, amount in wanted:
+        if await repo.add_first_version(category_id, target, amount):
+            copied += 1
+    return BudgetsCopied(copied=copied, skipped=len(wanted) - copied)
 
 
 async def budget_history(

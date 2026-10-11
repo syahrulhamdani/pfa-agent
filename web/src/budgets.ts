@@ -23,6 +23,26 @@ export function monthLabel(month: string): string {
   })
 }
 
+// What a copy did, in words. It never overwrites, so skipped ones are said out loud.
+export function copyMessage(
+  result: { copied: number; skipped: number },
+  fromLabel: string,
+): string {
+  if (result.copied === 0 && result.skipped === 0) {
+    return `${fromLabel} has no budgets to copy.`
+  }
+  const budgets = (n: number) => `${n} ${n === 1 ? 'budget' : 'budgets'}`
+  if (result.copied === 0) {
+    return `Nothing copied: every budget from ${fromLabel} is already set this month.`
+  }
+  const one = result.skipped === 1
+  const left =
+    result.skipped > 0
+      ? ` ${budgets(result.skipped)} already set this month ${one ? 'was' : 'were'} left as ${one ? 'it is' : 'they are'}.`
+      : ''
+  return `Copied ${budgets(result.copied)} from ${fromLabel}.${left}`
+}
+
 export type BudgetState = 'ok' | 'near' | 'over'
 
 // Said in words as well as colour: "near" starts at 85% used.

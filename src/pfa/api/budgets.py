@@ -9,6 +9,8 @@ from pfa.api.deps import get_session
 from pfa.core.config import Settings, get_settings
 from pfa.core.exceptions import NotFoundError
 from pfa.schemas.budgets import (
+    BudgetsCopied,
+    BudgetsCopy,
     BudgetSet,
     BudgetsRead,
     BudgetVersionRead,
@@ -21,6 +23,7 @@ from pfa.services.analytics import today_in
 from pfa.services.budgets import (
     budget_history,
     build_budgets,
+    copy_budgets,
     parse_month,
     set_budget,
 )
@@ -48,6 +51,14 @@ async def put_budget(body: BudgetSet, session: Session):
         )
     except NotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, exc.message) from None
+
+
+@router.post("/budgets/copy", response_model=BudgetsCopied)
+async def copy_month_budgets(body: BudgetsCopy, session: Session):
+    """Copies one month's budgets into another, never overwriting an existing one."""
+    return await copy_budgets(
+        session, parse_month(body.from_month), parse_month(body.to_month)
+    )
 
 
 @router.get("/budgets/history", response_model=list[BudgetVersionRead])

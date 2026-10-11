@@ -47,6 +47,26 @@ class BudgetsRead(BaseModel):
     unbudgeted_spent: Decimal  # money out in categories with no budget
 
 
+class BudgetsCopy(BaseModel):
+    """Copies one month's budgets into another."""
+
+    from_month: MonthText
+    to_month: MonthText
+
+    @model_validator(mode="after")
+    def _different_months(self) -> "BudgetsCopy":
+        if self.from_month == self.to_month:
+            raise ValueError("choose two different months")
+        return self
+
+
+class BudgetsCopied(BaseModel):
+    """What a copy did."""
+
+    copied: int  # budgets created in the target month
+    skipped: int  # categories that already had a budget there, left as they were
+
+
 class BudgetVersionRead(BaseModel):
     """One saved version of a budget."""
 

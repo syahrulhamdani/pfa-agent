@@ -42,6 +42,38 @@ class BudgetRepository:
         await self._session.refresh(created)  # as the database stored it
         return created
 
+    async def add_first_version(
+        self, category_id: int, month: date, amount: Decimal
+    ) -> bool:
+        """Saves version 1 of a budget unless the category already has one that month.
+
+        Takes the same lock as `add_version`, so two copies at once cannot both
+        create it.
+
+        Returns:
+            True if the budget was created, False if one already existed.
+        """
+        await self._session.execute(
+            select(func.pg_advisory_xact_lock(category_id, month.toordinal()))
+        )
+        exists = await self._session.scalar(
+            select(BudgetVersion.id)
+            .where(
+                BudgetVersion.category_id == category_id, BudgetVersion.month == month
+            )
+            .limit(1)
+        )
+        if exists is not None:
+            await self._session.rollback()  # releases the lock
+            return False
+        self._session.add(
+            BudgetVersion(
+                category_id=category_id, month=month, amount=amount, version=1
+            )
+        )
+        await self._session.commit()
+        return True
+
     async def current_through(self, month: date) -> list[tuple[BudgetVersion, str]]:
         """Returns the current (highest) version of every budget up to a month.
 

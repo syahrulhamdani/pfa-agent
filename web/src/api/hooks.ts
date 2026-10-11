@@ -154,6 +154,23 @@ export function useSetBudget() {
   })
 }
 
+// Duplicates one month's budgets into another; it never overwrites an existing one.
+export function useCopyBudgets() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { from_month: string; to_month: string }) =>
+      api<{ copied: number; skipped: number }>('/budgets/copy', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: ['budgets'] }),
+        client.invalidateQueries({ queryKey: ['analytics'] }),
+      ]),
+  })
+}
+
 export function useGoals() {
   return useQuery({ queryKey: ['goals'], queryFn: () => api<Goal[]>('/goals') })
 }
