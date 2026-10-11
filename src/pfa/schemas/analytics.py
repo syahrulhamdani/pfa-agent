@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from pfa.schemas.budgets import BudgetsRead
+
 
 class Period(enum.StrEnum):
     """The span of time a dashboard view covers."""
@@ -76,3 +78,5 @@ class AnalyticsRead(BaseModel):
     in_by_category: list[CategoryShare]
     series: list[SeriesPoint]
     previous: PeriodComparison
+    # Budgets and what is left of them: only for a month, the unit budgets are set in.
+    budgets: BudgetsRead | None = None

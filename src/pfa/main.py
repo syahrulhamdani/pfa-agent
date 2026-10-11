@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from loguru import logger
 
-from pfa.api import analytics, auth, banks, transactions
+from pfa.api import analytics, auth, banks, budgets, transactions
 from pfa.api.deps import require_session
 from pfa.api.errors import validation_error_handler
 from pfa.bot.app import build_application
@@ -119,6 +119,7 @@ protected = [Depends(require_session)]
 app.include_router(auth.router)
 app.include_router(analytics.router, dependencies=protected)
 app.include_router(banks.router, dependencies=protected)
+app.include_router(budgets.router, dependencies=protected)
 app.include_router(transactions.router, dependencies=protected)
 
 

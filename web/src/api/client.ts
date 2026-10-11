@@ -31,5 +31,9 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(response.status, detail)
   }
+  // A successful delete answers 204 with nothing to read.
+  if (response.status === 204) return undefined as T
+  // A successful delete answers 204 with nothing to read.
+  if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }

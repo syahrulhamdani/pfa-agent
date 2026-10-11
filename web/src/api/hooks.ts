@@ -2,7 +2,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import { isPreset, toApiQuery } from '../filters'
 import type { Filters } from '../filters'
-import type { Analytics, Bank, Card, Transaction, TransactionsChanged } from './types'
+import type {
+  Analytics,
+  Bank,
+  Budgets,
+  BudgetVersion,
+  Card,
+  Goal,
+  GoalInput,
+  Transaction,
+  TransactionsChanged,
+} from './types'
 
 export function useSession() {
   return useQuery({
@@ -107,5 +117,69 @@ export function useAnalytics(period: string, date: string | null) {
     queryKey: ['analytics', period, date ?? 'today'],
     queryFn: () => api<Analytics>(`/analytics?${query.toString()}`),
     refetchInterval: LIVE_REFETCH_MS,
+  })
+}
+
+export function useBudgets(month: string) {
+  return useQuery({
+    queryKey: ['budgets', month],
+    queryFn: () => api<Budgets>(`/budgets?month=${month}`),
+    refetchInterval: LIVE_REFETCH_MS, // spending changes as receipts are confirmed
+  })
+}
+
+// Every save adds a version; the history only loads once it is opened.
+export function useBudgetHistory(category: string, month: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['budget-history', category, month],
+    queryFn: () =>
+      api<BudgetVersion[]>(
+        `/budgets/history?${new URLSearchParams({ category, month })}`,
+      ),
+    enabled,
+  })
+}
+
+export function useSetBudget() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { category: string; month: string; amount: string }) =>
+      api<BudgetVersion>('/budgets', { method: 'PUT', body: JSON.stringify(input) }),
+    onSuccess: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: ['budgets'] }),
+        client.invalidateQueries({ queryKey: ['budget-history'] }),
+        client.invalidateQueries({ queryKey: ['analytics'] }),
+      ]),
+  })
+}
+
+export function useGoals() {
+  return useQuery({ queryKey: ['goals'], queryFn: () => api<Goal[]>('/goals') })
+}
+
+export function useCreateGoal() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (input: GoalInput) =>
+      api<Goal>('/goals', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['goals'] }),
+  })
+}
+
+export function useUpdateGoal() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...changes }: { id: number } & Partial<GoalInput>) =>
+      api<Goal>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['goals'] }),
+  })
+}
+
+export function useDeleteGoal() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api<undefined>(`/goals/${id}`, { method: 'DELETE' }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['goals'] }),
   })
 }

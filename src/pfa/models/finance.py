@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Time,
+    UniqueConstraint,
     false,
     func,
 )
@@ -132,6 +133,53 @@ class Transaction(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BudgetVersion(Base):
+    """One version of a category's budget for a month.
+
+    Editing a budget adds a version and never changes an earlier one, so the history
+    stays viewable. The current budget is the highest version.
+    """
+
+    __tablename__ = "budget_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "category_id", "month", "version", name="budget_versions_unique_version"
+        ),
+        CheckConstraint("amount > 0", name="budget_versions_amount_positive"),
+        CheckConstraint("version >= 1", name="budget_versions_version_positive"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
+    month: Mapped[date] = mapped_column(Date)  # always the first day of the month
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    version: Mapped[int]
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class Goal(Base):
+    """A savings goal. The saved amount is edited by hand."""
+
+    __tablename__ = "goals"
+    __table_args__ = (
+        CheckConstraint("target_amount > 0", name="goals_target_positive"),
+        CheckConstraint("saved_amount >= 0", name="goals_saved_not_negative"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    target_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    target_date: Mapped[date] = mapped_column(Date)
+    saved_amount: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), default=Decimal("0.00"), server_default="0"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class LoginToken(Base):

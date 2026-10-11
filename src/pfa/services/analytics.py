@@ -24,6 +24,7 @@ from pfa.schemas.analytics import (
     PeriodComparison,
     SeriesPoint,
 )
+from pfa.services.budgets import build_budgets
 
 ZERO = Decimal("0.00")
 
@@ -174,6 +175,7 @@ async def build_analytics(
             for day in bucket_starts(start, end, bucket)
         ]
 
+    budgets = await build_budgets(session, start) if period is Period.MONTH else None
     out_count, out_total = totals[Direction.OUT]
     in_count, in_total = totals[Direction.IN]
     previous_out = previous_totals[Direction.OUT][1]
@@ -198,6 +200,7 @@ async def build_analytics(
             money_out_change=_rounded(percent_change(previous_out, out_total)),
             money_in_change=_rounded(percent_change(previous_in, in_total)),
         ),
+        budgets=budgets,
     )
 
 

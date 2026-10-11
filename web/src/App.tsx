@@ -9,7 +9,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ApiError } from './api/client'
 import { Layout } from './components/Layout'
 import { RequireAuth } from './components/RequireAuth'
-import { ComingSoon } from './pages/ComingSoon'
+import { Budgets } from './pages/Budgets'
+import { Goals } from './pages/Goals'
 import { Settings } from './pages/Settings'
 import { SignIn } from './pages/SignIn'
 import { Transactions } from './pages/Transactions'
@@ -57,8 +58,8 @@ export default function App() {
                   </Suspense>
                 }
               />
-              <Route path="/budgets" element={<ComingSoon title="Budgets" />} />
-              <Route path="/goals" element={<ComingSoon title="Goals" />} />
+              <Route path="/budgets" element={<Budgets />} />
+              <Route path="/goals" element={<Goals />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>

@@ -87,7 +87,10 @@ Source: `scope.md > The POC Boundary`.
 
 ### Budgets
 - A budget is per category, per month.
-- It is a preset, can be edited, and is versioned (editing creates a new version; earlier versions are kept).
+- It is a preset, can be edited, and is versioned (editing creates a new version; earlier versions are kept; the current budget is the latest version).
+- The Budgets page shows one month at a time, stepping back and forward, with each category's budget, how much has been spent, what is left (or how far over) in words and a bar, and a link to every saved version. Money spent in categories without a budget is shown apart.
+- "Spent" is money out in that month by receipt date. Money in never pays a budget back, and moves between the user's own accounts or pockets (the transfer flag) are not spending; money sent to a person or business is.
+- The Dashboard shows what is left of this month's budgets when viewing a month.
 
 - As the user, I want to set and edit monthly category budgets so that spending can be compared against them.
   - [ ] I can create a monthly budget for a category and edit it later.
@@ -99,6 +102,8 @@ Source: `scope.md > The POC Boundary`.
 - As the user, I want to define savings goals so that pfa can recommend how to reach them.
   - [ ] I can create a goal with a name, target amount and target date.
   - [ ] I can see progress toward each goal.
+  - [ ] I can update how much I have saved, edit or delete a goal.
+- Progress is the saved amount against the target, which the user edits by hand; it can pass 100%, and the page says when a goal is reached or its date has gone.
 
 ### Adaptive nudges
 Source: `scope.md > The Unique Kernel`.

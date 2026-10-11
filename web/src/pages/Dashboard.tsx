@@ -10,7 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useAnalytics } from '../api/hooks'
-import type { Analytics, CategoryShare, PeriodName } from '../api/types'
+import type { Analytics, Budgets, CategoryShare, PeriodName } from '../api/types'
 import {
   CHART_COLORS,
   PERIODS,
@@ -22,6 +22,7 @@ import {
   parsePeriod,
   periodLabel,
 } from '../dashboard'
+import { barWidth, budgetState, percentUsed } from '../budgets'
 import { formatAmount } from '../format'
 
 const COMPACT = new Intl.NumberFormat(undefined, {
@@ -219,6 +220,66 @@ function SeriesChart({ data }: { data: Analytics }) {
   )
 }
 
+const BUDGET_WORDS = { ok: 'On track', near: 'Nearly used', over: 'Over budget' } as const
+
+// What is left of this month's budgets. Over budget is said in words, not colour alone.
+function BudgetPanel({ budgets }: { budgets: Budgets }) {
+  const link = `/budgets?month=${budgets.month.slice(0, 7)}`
+  if (budgets.items.length === 0) {
+    return (
+      <section className="card">
+        <h2>Budgets</h2>
+        <p className="muted">
+          No budgets are set for this month. <Link to={link}>Set budgets</Link> to see how
+          much is left.
+        </p>
+      </section>
+    )
+  }
+  const left = Number(budgets.total_remaining)
+  return (
+    <section className="card">
+      <div className="chart-head">
+        <h2>Budgets</h2>
+        <Link to={link}>Manage budgets</Link>
+      </div>
+      <p>
+        <strong className={left < 0 ? 'amount-out' : 'amount-in'}>
+          {left < 0
+            ? `Over by ${formatAmount(String(-left))}`
+            : `${formatAmount(budgets.total_remaining)} left`}
+        </strong>{' '}
+        of {formatAmount(budgets.total_budget)} · {formatAmount(budgets.total_spent)} spent
+      </p>
+      <ul className="breakdown">
+        {budgets.items.map((item) => {
+          const state = budgetState(item.used)
+          const remaining = Number(item.remaining)
+          return (
+            <li key={item.category}>
+              <div className="breakdown-head">
+                <span>{item.category}</span>
+                <span className={`budget-text budget-text-${state}`}>
+                  {BUDGET_WORDS[state]} ·{' '}
+                  {remaining < 0
+                    ? `over by ${formatAmount(String(-remaining))}`
+                    : `${formatAmount(item.remaining)} left`}
+                </span>
+              </div>
+              <div className="bar-track" role="img" aria-label={`${percentUsed(item.used)} used`}>
+                <div
+                  className={`bar-fill budget-${state}`}
+                  style={{ width: barWidth(item.used) }}
+                />
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
 export function Dashboard() {
   const [params, setParams] = useSearchParams()
   const period = parsePeriod(params.get('period'))
@@ -346,6 +407,8 @@ export function Dashboard() {
                 </div>
               )}
             </div>
+
+            {data.budgets && <BudgetPanel budgets={data.budgets} />}
 
             {empty ? (
               <p className="state">

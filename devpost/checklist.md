@@ -79,7 +79,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Open the Dashboard, switch periods, and check the numbers against what you've confirmed.
   Commit: `Add analytics service and dashboard`
 
-- [ ] **8. You can set versioned monthly budgets and savings goals**
+- [x] **8. You can set versioned monthly budgets and savings goals**
   Becomes usable: Budgets page (per category, per month, editable, older versions viewable) and Goals page (name, target amount, target date, manually edited saved amount, progress), with budget remaining shown on the dashboard.
   Why now: Recommendations compare spending against budgets and goals, so these must exist before the second half of the kernel.
   PRD ref: `prd.md > Budgets`, `prd.md > Goals`
@@ -156,3 +156,4 @@ Activity mode:
 - A move between the user's own accounts or pockets is now a flag on the transaction, not a category: the learner wanted to flag pocket top-ups yet keep their category, so "Transfer" is only the label a statement line gets once, to set the flag. The selection bar has a "Counting" control for it, and existing Transfer rows were flagged by a migration so no total changed.
 - The "Between accounts" cards link to a list of just those transactions and the filter panel has a Counting control (everything, between my accounts only, counted only) — the learner asked how to review the 17 left out of the totals.
 - The menu now starts with Dashboard then Transactions, and the dashboard is where sign-in links, the root address and unknown addresses land — the learner asked for it, and the first pass changed only the menu order.
+- Budgets are versioned per category and month, and "spent" counts money out only, leaving out just the flagged moves between the user's own accounts (money sent to people or businesses still counts) — the learner stressed that exclusion applies to between-accounts/pockets only. The dashboard shows what is left only for a month, because a budget is not defined for a week or a year; a month with no budget of its own has none (the learner chose strict per-month budgets over carrying the last one forward).

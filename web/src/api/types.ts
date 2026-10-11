@@ -72,4 +72,96 @@ export interface Analytics {
     money_out_change: number | null
     money_in_change: number | null
   }
+  // Only for a month, the unit budgets are set in.
+  budgets: Budgets | null
+}
+
+export interface BudgetItem {
+  category: string
+  month: string
+  set_for: string
+  amount: string
+  version: number
+  spent: string
+  remaining: string
+  used: number
+}
+
+export interface Budgets {
+  month: string
+  items: BudgetItem[]
+  total_budget: string
+  total_spent: string
+  total_remaining: string
+  unbudgeted_spent: string
+}
+
+export interface BudgetVersion {
+  version: number
+  amount: string
+  created_at: string
+  current: boolean
+}
+
+export interface Goal {
+  id: number
+  name: string
+  target_amount: string
+  target_date: string
+  saved_amount: string
+  progress: number
+  remaining: string
+  days_left: number
+}
+
+export interface GoalInput {
+  name: string
+  target_amount: string
+  target_date: string
+  saved_amount?: string
+}
+
+export interface BudgetItem {
+  category: string
+  month: string
+  set_for: string
+  amount: string
+  version: number
+  spent: string
+  remaining: string
+  used: number
+}
+
+export interface Budgets {
+  month: string
+  items: BudgetItem[]
+  total_budget: string
+  total_spent: string
+  total_remaining: string
+  unbudgeted_spent: string
+}
+
+export interface BudgetVersion {
+  version: number
+  amount: string
+  created_at: string
+  current: boolean
+}
+
+export interface Goal {
+  id: number
+  name: string
+  target_amount: string
+  target_date: string
+  saved_amount: string
+  progress: number
+  remaining: string
+  days_left: number
+}
+
+export interface GoalInput {
+  name: string
+  target_amount: string
+  target_date: string
+  saved_amount?: string
 }

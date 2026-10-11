@@ -758,3 +758,62 @@ details summary {
     padding: 8px 0 6px;
   }
 }
+
+/* Budgets and goals */
+.budget-ok {
+  background: var(--color-in);
+}
+
+.budget-near {
+  background: #b26a00;
+}
+
+.budget-over {
+  background: var(--color-out);
+}
+
+.budget-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.budget-text-ok {
+  color: var(--color-in);
+}
+
+.budget-text-near {
+  color: #8a5200; /* 4.5:1 or better on white */
+}
+
+.budget-text-over {
+  color: var(--color-out);
+}
+
+.inline-form {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.inline-form input {
+  width: 140px;
+}
+
+.goal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.goal-head h2 {
+  margin: 0;
+}
+
+.goal-reached {
+  color: var(--color-in);
+  font-weight: 700;
+}
