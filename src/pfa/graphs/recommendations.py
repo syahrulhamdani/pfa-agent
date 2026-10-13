@@ -16,7 +16,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from pfa.core.exceptions import LLMError
-from pfa.graphs.insights import RECOMMEND_PROMPT, Writer, advice_lines
+from pfa.graphs.insights import RECOMMEND_PROMPT, Writer, advice_lines, as_written
 from pfa.repository.summaries import SummaryRepository
 from pfa.schemas.analytics import Period
 from pfa.schemas.insights import InsightFacts, WeeklySummaryRead
@@ -71,12 +71,14 @@ def build_summary_graph(
     async def write(state: SummaryState) -> dict:
         facts, facts_text = state["facts"], state["facts_text"]
         try:
-            text = await writer(RECOMMEND_PROMPT, facts_text, "")
+            written = as_written(await writer(RECOMMEND_PROMPT, facts_text, ""))
         except LLMError:
             logger.exception("Recommendation model failed; using the template")
             return {"lines": fallback_recommendations(facts), "source": "fallback"}
-        lines = advice_lines(text)
-        if not lines or not numbers_grounded("\n".join(lines), facts_text):
+        lines = advice_lines(written.text)
+        if not lines or not numbers_grounded(
+            "\n".join(lines), facts_text, written.calculated
+        ):
             logger.warning(
                 "Recommendation quoted figures not in the facts; using template"
             )

@@ -68,6 +68,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         chat_model = build_chat_model(settings)
         category_names = load_category_names(settings.categories_file)
+        # One writer for summaries and chat. Its calculator is the only way it may
+        # produce a figure of its own, so it never works arithmetic out by itself.
+        writer = GeminiWriter(chat_model, calculator=True)
 
         async def chat_facts(route: Route) -> InsightFacts:
             today = today_in(settings.timezone)
@@ -88,7 +91,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             InsightsConfig(
                 router=GeminiRouter(chat_model, lambda: category_names),
                 facts=chat_facts,
-                writer=GeminiWriter(chat_model),
+                writer=writer,
             ),
         )
         files = FileStash()  # receipts live in memory only
@@ -114,7 +117,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         application.bot_data["send_nudge"] = send_nudge
         summary_service = SummaryService(
             session_factory,
-            build_summary_graph(session_factory, GeminiWriter(chat_model)),
+            build_summary_graph(session_factory, writer),
             settings.timezone,
         )
         send_monday_summary, send_demo_summary = build_summary_senders(

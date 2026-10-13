@@ -9,6 +9,7 @@ template, so a summary always goes out and is always true.
 
 import math
 import re
+from collections.abc import Iterable
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -170,6 +171,8 @@ async def gather_facts(
         start=analytics.start,
         end=analytics.end,
         partial=partial,
+        days=(analytics.end - analytics.start).days + 1,
+        days_elapsed=max((min(analytics.end, today) - analytics.start).days + 1, 0),
         money_out=analytics.money_out.total,
         money_in=analytics.money_in.total,
         net=analytics.net,
@@ -214,6 +217,16 @@ def render_facts(facts: InsightFacts) -> str:
     lines = [
         f"Period: {facts.label}"
         + (" (still running, so far)" if facts.partial else ""),
+        *(
+            [f"Length of the period: {_plural(facts.days, 'day', 'days')}"]
+            if facts.days
+            else []
+        ),
+        *(
+            [f"Days of the period so far: {facts.days_elapsed}"]
+            if facts.partial and facts.days_elapsed
+            else []
+        ),
         f"Money out: {fmt_money(facts.money_out)} in {facts.out_count} "
         f"transactions; {_change_text(facts.money_out_change, noun)}",
         f"Money in: {fmt_money(facts.money_in)} in {facts.in_count} transactions; "
@@ -452,7 +465,8 @@ _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
 _LIST_MARKER = re.compile(r"^\s*(?:\d+[.)]|[-*•])\s+", re.MULTILINE)
 
 
-def _numbers(text: str) -> set[Decimal]:
+def figures_in(text: str) -> set[Decimal]:
+    """Returns every number written in `text`, however it is formatted."""
     found: set[Decimal] = set()
     for token in _NUMBER.findall(text):
         try:
@@ -462,12 +476,18 @@ def _numbers(text: str) -> set[Decimal]:
     return found
 
 
-def ungrounded_numbers(text: str, facts_text: str) -> set[Decimal]:
-    """Returns the figures in `text` that do not appear in the facts."""
-    allowed = _numbers(facts_text)
-    return _numbers(_LIST_MARKER.sub("", text)) - allowed
+def ungrounded_numbers(
+    text: str, facts_text: str, extra: Iterable[Decimal] = ()
+) -> set[Decimal]:
+    """Returns the figures in `text` that are not in the facts or in `extra`.
+
+    `extra` holds figures that are legitimately known besides the facts, such as the
+    results a calculator produced.
+    """
+    allowed = figures_in(facts_text) | set(extra)
+    return figures_in(_LIST_MARKER.sub("", text)) - allowed
 
 
-def numbers_grounded(text: str, facts_text: str) -> bool:
-    """True if every figure in `text` is one of the facts, however it is formatted."""
-    return not ungrounded_numbers(text, facts_text)
+def numbers_grounded(text: str, facts_text: str, extra: Iterable[Decimal] = ()) -> bool:
+    """True if every figure in `text` is a fact (or in `extra`), however formatted."""
+    return not ungrounded_numbers(text, facts_text, extra)

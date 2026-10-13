@@ -293,7 +293,8 @@ async def test_the_writer_returns_the_trimmed_text_and_shows_the_question():
             return super()._generate(messages, *args, **kwargs)
 
     writer = GeminiWriter(Model(messages=iter([AIMessage(content="  Fine.  ")])))
-    assert await writer("be brief", "Money out: 5", "how?") == "Fine."
+    written = await writer("be brief", "Money out: 5", "how?")
+    assert written.text == "Fine." and written.calculated == frozenset()
     assert "Facts:\nMoney out: 5" in shown[0] and "Question: how?" in shown[0]
 
 

@@ -16,7 +16,14 @@ from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
 from pfa.core.exceptions import LLMError
-from pfa.graphs.insights import ANSWER_PROMPT, Route, Router, Writer
+from pfa.graphs.insights import (
+    ANSWER_PROMPT,
+    CALCULATE_PROMPT,
+    Route,
+    Router,
+    Writer,
+    as_written,
+)
 from pfa.schemas.insights import InsightFacts
 from pfa.services.insights import numbers_grounded, render_facts, render_stats
 
@@ -25,6 +32,10 @@ MAX_HISTORY_MESSAGES = 20
 
 BUSY_REPLY = "I'm busy right now. Please try again in a moment."
 FIGURES_INTRO = "Here is how {label} looks:"
+CALCULATION_FAILED = (
+    "I couldn't work that out reliably. Please give me the numbers plainly, for "
+    "example “15% of 2,000,000”, and I'll calculate it."
+)
 
 SYSTEM_PROMPT = (
     "You are pfa, a personal finance assistant chatting with one person on Telegram. "
@@ -51,18 +62,43 @@ async def answer_from_facts(config: InsightsConfig, route: Route, question: str)
     is one of the facts) followed by the figures laid out one per line by code. If
     the model fails or strays, a plain introduction and the same figures are sent.
     """
+    if route.kind == "calculate":
+        return await answer_calculation(config, question)
     facts = await config.facts(route)
     facts_text = render_facts(facts)
     stats = render_stats(facts)  # the figures, laid out to be read
     try:
-        text = (await config.writer(ANSWER_PROMPT, facts_text, question)).strip()
+        written = as_written(await config.writer(ANSWER_PROMPT, facts_text, question))
     except LLMError:
         logger.exception("Insight model failed; answering with the figures alone")
         return f"{FIGURES_INTRO.format(label=facts.label)}\n\n{stats}"
-    if not text or not numbers_grounded(text, facts_text):
+    text = written.text.strip()
+    # A figure may come from the facts, from the question (the user said it), or from
+    # the calculator; nothing else.
+    known = f"{facts_text}\n{question}"
+    if not text or not numbers_grounded(text, known, written.calculated):
         logger.warning("Insight answer quoted figures not in the facts; using figures")
         return f"{FIGURES_INTRO.format(label=facts.label)}\n\n{stats}"
     return f"{text}\n\n{stats}"
+
+
+async def answer_calculation(config: InsightsConfig, question: str) -> str:
+    """Answers a plain arithmetic question using the calculator.
+
+    The answer is used only if every figure in it is a number from the question or a
+    calculator result. A model that did the sum itself is therefore refused, and the
+    user is asked to restate the numbers.
+    """
+    try:
+        written = as_written(await config.writer(CALCULATE_PROMPT, "", question))
+    except LLMError:
+        logger.exception("Calculation model failed")
+        return CALCULATION_FAILED
+    text = written.text.strip()
+    if not text or not numbers_grounded(text, question, written.calculated):
+        logger.warning("Calculation answer quoted a figure the calculator did not give")
+        return CALCULATION_FAILED
+    return text
 
 
 def build_chat_graph(
@@ -88,7 +124,7 @@ def build_chat_graph(
         if insights is not None:
             question = state["messages"][-1].text
             route = await insights.router(question)
-            if route.kind == "insights":
+            if route.kind in ("insights", "calculate"):
                 answer = await answer_from_facts(insights, route, question)
                 return {"messages": [AIMessage(answer)]}
         history = trim_messages(

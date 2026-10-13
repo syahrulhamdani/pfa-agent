@@ -55,6 +55,8 @@ class InsightFacts(BaseModel):
     start: date
     end: date
     partial: bool = False  # the period was still running when this was written
+    days: int = 0  # how many days the period spans; 0 if unknown
+    days_elapsed: int = 0  # how many of them had passed (0 if unknown)
     money_out: Decimal
     money_in: Decimal
     net: Decimal
