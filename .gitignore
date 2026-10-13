@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.claude/worktrees
 
 __pycache__/
 *.py[cod]
