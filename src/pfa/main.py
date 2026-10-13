@@ -17,6 +17,7 @@ from pfa.bot.summaries import build_summary_senders
 from pfa.bot.uploads import UploadCoordinator
 from pfa.core.config import get_settings
 from pfa.core.database import create_engine, create_session_factory
+from pfa.core.exceptions import PfaError
 from pfa.core.loggers import configure_logging
 from pfa.core.tracing import configure_tracing
 from pfa.graphs.chat import InsightsConfig, build_chat_graph
@@ -34,6 +35,7 @@ from pfa.schemas.insights import InsightFacts
 from pfa.services.analytics import shift_anchor, today_in
 from pfa.services.auth import issue_login_link, revoke_all_sessions
 from pfa.services.categories import load_category_names, seed_categories
+from pfa.services.diagnostics import incomplete_setup_message
 from pfa.services.files import FileStash
 from pfa.services.insights import gather_facts
 from pfa.services.nudges import NudgeService
@@ -46,6 +48,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Starts Telegram polling on startup and stops it on shutdown."""
     settings = get_settings()
     configure_logging(settings.log_level, settings.log_use_basic_format)
+    if (setup_message := incomplete_setup_message(settings)) is not None:
+        raise PfaError(setup_message)  # stop here, in words, not in a Telegram trace
     if settings.langsmith_tracing and not settings.langsmith_api_key:
         logger.warning("LANGSMITH_TRACING is on but LANGSMITH_API_KEY is empty")
     if settings.tracing_enabled:

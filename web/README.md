@@ -1,32 +1,21 @@
-# React + TypeScript + Vite
+# pfa web app
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The React front end for pfa: dashboard, transactions, budgets, goals, and banks and cards.
 
-Currently, two official plugins are available:
+It is part of the larger project: see the [main README](../README.md) for what pfa is and
+how to run all of it. In short, with the API running (`uv run --env-file .env uvicorn
+pfa.main:app` from the project root):
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm ci          # install, from the lockfile
+npm run dev     # http://localhost:5173
+npm run build   # type-check and build
+npm run lint    # oxlint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The browser calls `/api/*` and the dev server forwards it to the API on port 8000 (set
+`VITE_API_TARGET` to use another address), so there is nothing to configure for CORS.
+Sign in by sending `/login` to your Telegram bot and opening the link.
+
+Stack: Vite, React 19, TypeScript, TanStack Query, react-router, Recharts. The colours,
+spacing and fonts are CSS variables at the top of `src/theme.css`.

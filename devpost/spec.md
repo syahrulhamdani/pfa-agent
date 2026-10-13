@@ -56,11 +56,14 @@ Everything runs locally; this is enough for the required demo video and the publ
 
 - Requirements: Python via pyenv, `uv`, Node, Docker, a Telegram bot token (from BotFather) and a Gemini API key.
 - Config: `.env.example` is the env file (per your convention) with `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`, `GEMINI_CHAT_MODEL`, `GEMINI_EXTRACT_MODEL`, `WEB_BASE_URL`, `TIMEZONE`, `LOG_LEVEL`, `LOG_USE_BASIC_FORMAT`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `CATEGORIES_FILE`, `AUTH_SECRET`, `AUTH_LINK_TTL_MINUTES`, `AUTH_SESSION_DAYS`, `AUTH_COOKIE_SECURE`. Real secrets must not be committed to the public repo.
-- Start:
-  1. `docker compose up -d db`
-  2. `uv run --env-file .env.example alembic upgrade head`
-  3. `uv run --env-file .env.example uvicorn pfa.main:app --reload` (starts the API, bot polling and scheduler in one event loop)
-  4. `cd web && npm install && npm run dev`
+- Start (the root `README.md` has the full walkthrough with Telegram and Gemini setup):
+  1. `docker compose up -d --wait db`
+  2. `uv run --env-file .env alembic upgrade head`
+  3. Message your bot, then `uv run --env-file .env pfa chat-id` and put the id in `.env`; `uv run --env-file .env pfa doctor` checks everything.
+  4. Optional: `uv run --env-file .env pfa seed-demo` loads fictional sample data into an empty database.
+  5. `uv run --env-file .env uvicorn pfa.main:app` (starts the API, bot polling and scheduler in one event loop; it stops with a clear message if the settings are still placeholders)
+  6. `cd web && npm ci && npm run dev`
+- `pfa` is a Typer command line (`pfa doctor`, `pfa chat-id`, `pfa seed-demo`); `Makefile` has shortcuts. `docs/screenshots/` and `examples/receipt.png` are generated from the sample data.
 - To record: open the web app at `http://localhost:5173` and Telegram on your phone or desktop. Trigger the Monday summary and a nudge on demand with `/demo_summary` and `/demo_nudge` in Telegram.
 
 ## Look and Feel
