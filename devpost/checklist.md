@@ -89,7 +89,7 @@ Build mode: learn for slice 1; learner chooses the mode again before each later 
   Learner check: Create a budget, edit it, and view the older version; create a goal and update its saved amount.
   Commit: `Add versioned budgets and goals`
 
-- [ ] **9. pfa speaks up on its own: Monday summary and recommendations (the unique kernel)**
+- [x] **9. pfa speaks up on its own: Monday summary and recommendations (the unique kernel)**
   Becomes usable: `/demo_summary` (and the Monday job) sends a short summary with a dashboard link; the dashboard shows last week's stats, category breakdown and recommendations against remaining budget; asking pfa in chat for insights answers from your confirmed data.
   Why now: Last by dependency, since it uses analytics, budgets and goals, but it completes the kernel and the demo's closing beat.
   PRD ref: `prd.md > Weekly summary and recommendations`, `prd.md > States and Boundaries` (demo triggering)
@@ -158,3 +158,5 @@ Activity mode:
 - The menu now starts with Dashboard then Transactions, and the dashboard is where sign-in links, the root address and unknown addresses land — the learner asked for it, and the first pass changed only the menu order.
 - Budgets are versioned per category and month, and "spent" counts money out only, leaving out just the flagged moves between the user's own accounts (money sent to people or businesses still counts) — the learner stressed that exclusion applies to between-accounts/pockets only. The dashboard shows what is left only for a month, because a budget is not defined for a week or a year; a month with no budget of its own has none (the learner chose strict per-month budgets over carrying the last one forward).
 - Budgets can be copied from the previous month with one button that never overwrites a budget already set — the learner asked for carry-over after choosing strict per-month budgets, so the copy is something the user does, not something that happens silently.
+- The weekly summary, advice and chat answers are built so the model never supplies a figure: every number comes from SQL through the analytics and budget services, the model only writes sentences, and any sentence quoting a figure that is not in the computed facts is replaced by a template. A summary is stored once per week (the Monday job never resends a finished week); a demo run in an empty week falls back to the week so far and is marked partial so the real Monday summary still replaces it. The learner kept the default for which budgets are worth flagging: every one that is nearly used (85% or more) or over, the most used first.
+- Chat answers about money are now a few plain sentences followed by the figures laid out one per line by code, instead of figures inside sentences — the learner found the numbers hard to take in; the layout is built from the same checked facts, so it cannot be wrong or invented, and the model is told to give the takeaway and not list figures.

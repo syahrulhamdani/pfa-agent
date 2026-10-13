@@ -119,15 +119,18 @@ Source: `scope.md > The Unique Kernel`.
   - [ ] Ignoring a nudge produces no follow-up message.
 
 ### Weekly summary and recommendations
-- At the start of the week, pfa sends a short Monday summary on Telegram with a link to the dashboard.
+- At the start of the week, pfa sends a short Monday summary on Telegram with a link to the dashboard. It covers the week that just ended (Monday to Sunday): money out, money in and the net apart, how money out compares with the week before, the biggest spending categories, the budgets worth watching and what the savings goals need, with a few short pieces of advice. Moves between the user's own accounts are left out. A week is summarised once: the Monday job never rewrites or resends a finished week.
+- Every figure is computed from the confirmed data, never by the model. The model only writes the advice, and any advice that quotes a figure not in the computed facts is replaced by a plain template, so a summary always goes out and is always true.
+- `/demo_summary` writes and sends a fresh summary on demand. If the last full week has nothing recorded it uses the current week so far, marked as still running, which the real Monday summary later replaces.
 - The web app holds the full version: last week's stats, category stats, and recommendations against the remaining budget for the upcoming weeks.
-- The user can also ask pfa for recommendations and insights at any time in chat.
+- The user can also ask pfa for recommendations and insights at any time in chat (for example "how am I doing on dining this week?"). Questions about the user's own money are answered from the same computed facts, for the period and category asked about, under the same rule: a figure that is not in the facts is never quoted. The reply is one to three plain sentences with the takeaway, followed by the figures laid out one labelled figure per line (money out, money in, net, top spending, budgets, goals; for a question about one category, that category and its budget come first). Anything else is ordinary conversation.
 - Recommendations cover insights, budgets and goals based on the running transactions and expenses.
 
 - As the user, I want a short weekly recap so that I know where I stand without opening the app.
   - [ ] The Telegram summary is short and includes a link to the dashboard.
   - [ ] The dashboard shows last week's stats, category breakdown and recommendations against remaining budget.
   - [ ] Asking pfa in chat for insights returns a response based on my confirmed data.
+  - [ ] The summary on the dashboard is the one that was sent, with the same figures and advice.
 
 ## States and Boundaries
 

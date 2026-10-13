@@ -17,6 +17,7 @@ from sqlalchemy import (
     false,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pfa.models.base import Base
@@ -177,6 +178,24 @@ class Goal(Base):
     saved_amount: Mapped[Decimal] = mapped_column(
         Numeric(14, 2), default=Decimal("0.00"), server_default="0"
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class WeeklySummary(Base):
+    """The summary of one week: the figures it was written from, and the advice.
+
+    There is one per week (the Monday it starts on). The figures are stored as they
+    were computed, so what the dashboard shows is exactly what was sent to Telegram.
+    """
+
+    __tablename__ = "weekly_summaries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    week_start: Mapped[date] = mapped_column(Date, unique=True)
+    stats_json: Mapped[dict] = mapped_column(JSONB)
+    recommendations_text: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

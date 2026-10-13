@@ -165,3 +165,45 @@ export interface GoalInput {
   target_date: string
   saved_amount?: string
 }
+
+export interface SummaryBudgetLine {
+  category: string
+  amount: string
+  spent: string
+  remaining: string
+  used: number
+  state: 'ok' | 'near' | 'over'
+}
+
+export interface SummaryGoalLine {
+  name: string
+  saved: string
+  target: string
+  progress: number
+  remaining: string
+  days_left: number
+  per_week_needed: string | null
+}
+
+export interface WeeklySummary {
+  week_start: string
+  week_end: string
+  recommendations: string[]
+  source: 'model' | 'fallback'
+  created_at: string
+  facts: {
+    label: string
+    partial: boolean
+    money_out: string
+    money_in: string
+    net: string
+    out_count: number
+    in_count: number
+    money_out_change: number | null
+    money_in_change: number | null
+    transfers: MoneyTotal
+    top_out: CategoryShare[]
+    flags: SummaryBudgetLine[]
+    goals: SummaryGoalLine[]
+  }
+}

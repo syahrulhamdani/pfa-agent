@@ -22,6 +22,7 @@ import {
   parsePeriod,
   periodLabel,
 } from '../dashboard'
+import { WeeklySummaryPanel } from '../components/WeeklySummaryPanel'
 import { barWidth, budgetState, percentUsed } from '../budgets'
 import { formatAmount } from '../format'
 
@@ -407,6 +408,8 @@ export function Dashboard() {
                 </div>
               )}
             </div>
+
+            <WeeklySummaryPanel />
 
             {data.budgets && <BudgetPanel budgets={data.budgets} />}
 

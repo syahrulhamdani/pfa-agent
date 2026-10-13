@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from './client'
+import { api, ApiError } from './client'
 import { isPreset, toApiQuery } from '../filters'
 import type { Filters } from '../filters'
 import type {
@@ -12,6 +12,7 @@ import type {
   GoalInput,
   Transaction,
   TransactionsChanged,
+  WeeklySummary,
 } from './types'
 
 export function useSession() {
@@ -198,5 +199,22 @@ export function useDeleteGoal() {
   return useMutation({
     mutationFn: (id: number) => api<undefined>(`/goals/${id}`, { method: 'DELETE' }),
     onSuccess: () => client.invalidateQueries({ queryKey: ['goals'] }),
+  })
+}
+
+// The latest weekly summary, or null before there is one (not an error).
+export function useSummary() {
+  return useQuery({
+    queryKey: ['summary'],
+    queryFn: async () => {
+      try {
+        return await api<WeeklySummary>('/summary')
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null
+        throw error
+      }
+    },
+    retry: false,
+    refetchInterval: 30_000,
   })
 }

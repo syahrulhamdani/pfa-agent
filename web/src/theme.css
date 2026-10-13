@@ -817,3 +817,11 @@ details summary {
   color: var(--color-in);
   font-weight: 700;
 }
+.advice {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.advice li + li {
+  margin-top: 6px;
+}

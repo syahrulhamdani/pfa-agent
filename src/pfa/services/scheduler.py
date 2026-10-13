@@ -13,6 +13,8 @@ from pfa.services.nudges import NudgeService
 NUDGE_JOB_PREFIX = "nudge-"
 REFRESH_JOB_ID = "refresh-slots"
 REFRESH_HOUR = 4  # re-learn the slots once a day, before the day's first nudge
+SUMMARY_JOB_ID = "weekly-summary"
+SUMMARY_HOUR = 8  # Monday, local time, unless configured otherwise
 
 
 class NudgeScheduler:
@@ -30,10 +32,14 @@ class NudgeScheduler:
         send_nudge: Callable[[], Awaitable[None]],
         timezone: str,
         scheduler: AsyncIOScheduler | None = None,
+        send_summary: Callable[[], Awaitable[None]] | None = None,
+        summary_hour: int = SUMMARY_HOUR,
     ) -> None:
         """Creates the scheduler wrapper without starting it."""
         self._service = service
         self._send_nudge = send_nudge
+        self._send_summary = send_summary
+        self._summary_hour = summary_hour
         self._tz = ZoneInfo(timezone)
         self._stopping = False
         self._scheduler = scheduler or AsyncIOScheduler(
@@ -51,6 +57,20 @@ class NudgeScheduler:
             id=REFRESH_JOB_ID,
             replace_existing=True,
         )
+        if self._send_summary is not None:
+            # Monday morning: the week that just ended. The job itself never sends
+            # a week twice, so a repeat or a restart is harmless.
+            self._scheduler.add_job(
+                self._send_summary,
+                CronTrigger(
+                    day_of_week="mon",
+                    hour=self._summary_hour,
+                    minute=0,
+                    timezone=self._tz,
+                ),
+                id=SUMMARY_JOB_ID,
+                replace_existing=True,
+            )
         self._scheduler.start()
 
     async def reschedule(self) -> list[Slot]:

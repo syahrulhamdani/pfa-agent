@@ -13,6 +13,7 @@ from pfa.models.finance import (
     TransactionStatus,
     Upload,
     UploadStatus,
+    WeeklySummary,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "TransactionStatus",
     "Upload",
     "UploadStatus",
+    "WeeklySummary",
 ]

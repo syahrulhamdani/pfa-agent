@@ -97,6 +97,16 @@ async def handle_demo_nudge(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await context.bot_data["send_nudge"]()
 
 
+async def handle_demo_summary(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Writes and sends the weekly summary right now, for the demo."""
+    if not is_authorized(update, context.bot_data["chat_id"]):
+        logger.warning("Ignoring /demo_summary from unauthorized chat")
+        return
+    await context.bot_data["send_demo_summary"]()
+
+
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Treats text as a correction if a receipt awaits it, else as casual chat."""
     allowed_chat_id: int = context.bot_data["chat_id"]

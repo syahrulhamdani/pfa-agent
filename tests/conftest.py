@@ -95,8 +95,8 @@ async def session_factory(test_database_url):
         await conn.execute(
             text(
                 "TRUNCATE transactions, uploads, cards, banks, categories, "
-                "login_tokens, auth_state, nudge_slots, budget_versions, goals "
-                "RESTART IDENTITY CASCADE"
+                "login_tokens, auth_state, nudge_slots, budget_versions, goals, "
+                "weekly_summaries RESTART IDENTITY CASCADE"
             )
         )
     factory = async_sessionmaker(engine, expire_on_commit=False)

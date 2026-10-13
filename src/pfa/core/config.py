@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     auth_cookie_secure: bool = False  # set true when the web app is served over HTTPS
     web_base_url: str = "http://localhost:5173"
     timezone: str = "Asia/Jakarta"
+    summary_hour: int = Field(8, ge=0, le=23)  # Monday, local time, for the summary
     log_level: str = "INFO"
     log_use_basic_format: bool = True
     # LangSmith observability. LangChain and LangGraph read the LANGSMITH_* env

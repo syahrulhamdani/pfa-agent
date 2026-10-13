@@ -14,6 +14,7 @@ from telegram.ext import (
 from pfa.bot.handlers import (
     handle_callback,
     handle_demo_nudge,
+    handle_demo_summary,
     handle_error,
     handle_login,
     handle_signout,
@@ -43,6 +44,7 @@ def build_application(
     application.add_handler(CommandHandler("login", handle_login))
     application.add_handler(CommandHandler("signout", handle_signout))
     application.add_handler(CommandHandler("demo_nudge", handle_demo_nudge))
+    application.add_handler(CommandHandler("demo_summary", handle_demo_summary))
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(
         MessageHandler(filters.PHOTO | filters.Document.ALL, handle_upload)
